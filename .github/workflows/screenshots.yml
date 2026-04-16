@@ -2,7 +2,7 @@ name: Screenshots
 
 on:
   push:
-    branches: [main]
+    branches: [master, main]
     paths:
       - 'launcher/**'
       - 'scripts/capture-screenshots.mjs'
@@ -17,6 +17,9 @@ concurrency:
   group: screenshots
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   screenshots:
     runs-on: ubuntu-latest
@@ -29,12 +32,18 @@ jobs:
 
       - name: Install freeze
         run: |
-          VER="0.1.6"
-          curl -sSL -o freeze.tar.gz \
-               "https://github.com/charmbracelet/freeze/releases/download/v${VER}/freeze_${VER}_Linux_x86_64.tar.gz"
+          # Resolve the latest charmbracelet/freeze release tag dynamically
+          # so the workflow doesn't rot when upstream ships a new version.
+          TAG=$(curl -fsSL -H 'Accept: application/vnd.github+json' \
+                https://api.github.com/repos/charmbracelet/freeze/releases/latest \
+                | grep -oE '"tag_name"\s*:\s*"[^"]+"' | head -n1 | cut -d'"' -f4)
+          VER="${TAG#v}"
+          echo "installing freeze ${TAG}"
+          curl -fsSL -o freeze.tar.gz \
+               "https://github.com/charmbracelet/freeze/releases/download/${TAG}/freeze_${VER}_Linux_x86_64.tar.gz"
           tar -xzf freeze.tar.gz
-          sudo mv freeze_${VER}_Linux_x86_64/freeze /usr/local/bin/
-          freeze --version
+          sudo install -m 0755 "freeze_${VER}_Linux_x86_64/freeze" /usr/local/bin/freeze
+          freeze --help >/dev/null 2>&1 || freeze -h >/dev/null 2>&1 || true
 
       - name: Capture ANSI frames
         run: node scripts/capture-screenshots.mjs

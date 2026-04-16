@@ -2,7 +2,7 @@ name: Nightly
 
 on:
   push:
-    branches: [main]
+    branches: [master, main]
   workflow_dispatch:
 
 permissions:
@@ -11,6 +11,9 @@ permissions:
 concurrency:
   group: nightly
   cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   nightly:

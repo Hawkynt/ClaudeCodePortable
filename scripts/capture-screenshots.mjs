@@ -71,6 +71,7 @@ capture('doctor', () => {
 console.log('done.');
 
 function pathToImport(p) {
-    // Node -e expects a file:// URL or a forward-slash path on Windows.
-    return 'file:///' + p.replace(/\\/g, '/');
+    // url.pathToFileURL handles Windows drive letters AND Unix absolute paths
+    // correctly (three slashes, not four).
+    return url.pathToFileURL(p).href;
 }
