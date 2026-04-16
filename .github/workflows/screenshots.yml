@@ -53,6 +53,7 @@ jobs:
           mkdir -p assets/screenshots
           for name in session profile doctor; do
               freeze \
+                  --language ansi \
                   --theme dracula \
                   --window \
                   --padding 24 \
