@@ -1,0 +1,77 @@
+name: Nightly
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0                           # version.pl needs full history
+
+      - name: Compute date + version
+        id: meta
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          VERSION=$(perl scripts/version.pl)
+          TAG="nightly-$DATE"
+          echo "date=$DATE"         >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"           >> "$GITHUB_OUTPUT"
+          echo "Resolved: $TAG ($VERSION)"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Unit tests
+        run: node --test
+
+      - name: Build release zip
+        run: |
+          D="${{ steps.meta.outputs.date }}"
+          STAGE="ClaudePortable-nightly-${D}"
+          rm -rf "$STAGE" dist
+          mkdir -p dist "$STAGE"
+          cp -r launcher scripts Claude.bat claude.sh README.md LICENSE .gitignore VERSION "$STAGE/"
+          chmod +x "$STAGE/claude.sh"
+          (cd . && zip -r "dist/${STAGE}.zip" "$STAGE")
+          ls -la dist
+
+      - name: Delete same-date nightly if it exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ steps.meta.outputs.tag }}" >/dev/null 2>&1; then
+            gh release delete "${{ steps.meta.outputs.tag }}" --cleanup-tag --yes
+          fi
+
+      - name: Publish nightly release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.meta.outputs.tag }}" \
+              --title "Nightly ${{ steps.meta.outputs.date }} (${{ steps.meta.outputs.version }})" \
+              --prerelease \
+              --notes "Automated build of commit \`${GITHUB_SHA}\`.
+
+          Version: \`${{ steps.meta.outputs.version }}\`
+
+          Unpack and run \`Claude.bat\` (Windows) or \`./claude.sh\` (Linux/macOS)." \
+              dist/*.zip
+
+      - name: GFS prune of old nightlies
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/prune-nightlies.mjs

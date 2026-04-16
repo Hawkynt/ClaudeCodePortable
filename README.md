@@ -173,6 +173,66 @@ No data is sent anywhere by the launcher itself.
 Remove the folder. If you registered the Explorer context menu, run
 `Claude.bat --unregister-shell` first so the registry entries are removed.
 
+## Development
+
+Cloning the repo gives you `launcher/`, bootstrap scripts, tests, and CI
+config. Everything under `app/` and `profiles/` is populated at runtime.
+
+### Running tests
+
+Node 22+ has a built-in test runner. From the repo root:
+
+```bash
+node --test
+```
+
+Tests live in `tests/*.test.mjs` and cover `args`, `ui`, `profiles`,
+`sessions`, and the SHA256 helper in `install.mjs`. CI runs them on
+Ubuntu, Windows, and macOS (`.github/workflows/ci.yml`).
+
+### Nightly builds (automatic)
+
+Every push to `main` triggers `.github/workflows/nightly.yml`, which:
+
+1. Runs the full test suite.
+2. Builds `ClaudePortable-nightly-YYYY-MM-DD.zip`.
+3. Publishes it as a GitHub pre-release with tag `nightly-YYYY-MM-DD`.
+   Pushing again on the same day overwrites the existing nightly.
+4. Prunes old nightlies with a promotion-based Grandfather-Father-Son
+   rotation. Gaps in activity never waste a slot:
+   - **Son**: the 7 newest nightlies, whatever their dates are.
+   - **Father**: from older releases, one per distinct ISO-week, up to 4
+     weeks. Weeks that son already covers are skipped so father always
+     reaches further back when son is quiet.
+   - **Grandfather**: from what's older still, one per distinct calendar
+     month, up to 3 months. Skips months son or father already touched.
+
+You can grab the latest nightly from the repo's
+[releases page](https://github.com/Hawkynt/ClaudeCodePortable/releases)
+without ever cutting a tag.
+
+### Cutting a versioned release (optional)
+
+1. Bump `VERSION` if you want a new major/minor/patch base.
+2. Tag the release: `git tag v1.0.0 && git push --tags`.
+3. `.github/workflows/release.yml` builds `ClaudePortable-<version>.zip`
+   and attaches it to an auto-generated GitHub release.
+
+### Version format
+
+`scripts/version.pl` prints `MAJOR.MINOR.PATCH.BUILD`. The first three
+come from the `VERSION` file; `BUILD` is `git rev-list --count HEAD`.
+Call it with `--base` or `--build` to get just one segment.
+
+### Local dry-run of the nightly pruner
+
+```bash
+node scripts/prune-nightlies.mjs --dry-run
+```
+
+(Requires `gh` CLI and a GitHub auth token.) Prints the keep/drop plan
+without touching any releases.
+
 ## License
 
 LGPL 2.1. See [LICENSE](./LICENSE).

@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Manual release trigger'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0                          # version.pl needs full history for commit count
+
+      - name: Compute version
+        id: version
+        run: |
+          V=$(perl scripts/version.pl)
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $V"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Unit tests
+        run: node --test
+
+      - name: Build release zip
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          STAGE="ClaudePortable-${V}"
+          rm -rf "$STAGE" dist
+          mkdir -p dist "$STAGE"
+          cp -r launcher scripts Claude.bat claude.sh README.md LICENSE .gitignore VERSION "$STAGE/"
+          chmod +x "$STAGE/claude.sh"
+          (cd "$(dirname "$STAGE")" && zip -r "dist/${STAGE}.zip" "$STAGE")
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClaudePortable
+          path: dist/*.zip
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ClaudePortable
+          path: dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true

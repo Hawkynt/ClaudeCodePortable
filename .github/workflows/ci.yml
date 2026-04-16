@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ['22']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Unit tests
+        run: node --test
+
+      - name: Bootstrap smoke-test (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          .\Claude.bat --list-profiles || exit /b 1
+
+      - name: Bootstrap smoke-test (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          chmod +x claude.sh
+          ./claude.sh --list-profiles
