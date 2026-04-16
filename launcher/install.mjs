@@ -22,7 +22,7 @@ import { c, color } from './ui.mjs';
 // ---------------------------------------------------------------------------
 export async function download(url, dest) {
     await new Promise((resolve, reject) => {
-        const req = https.get(url, { headers: { 'User-Agent': 'ClaudePortable' } }, (res) => {
+        const req = https.get(url, { headers: { 'User-Agent': 'ClaudeCodePortable' } }, (res) => {
             if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
                 res.resume();
                 return download(res.headers.location, dest).then(resolve, reject);

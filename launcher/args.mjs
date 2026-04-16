@@ -20,6 +20,7 @@ export function parseArgs(argv) {
         if (a === '--new-profile')     { out.mode = 'newProfile'; out.newProfileName = next(); continue; }
         if (a === '--register-shell')  { out.mode = 'regShell'; continue; }
         if (a === '--unregister-shell'){ out.mode = 'unregShell'; continue; }
+        if (a === '--doctor')          { out.mode = 'doctor'; continue; }
         if (a === '--move-session')    { out.mode = 'moveSession'; out.moveSession.id = next(); continue; }
         if (a === '--to')              { out.moveSession.to = next(); continue; }
         if (a === '--from')            { out.moveSession.from = next(); continue; }

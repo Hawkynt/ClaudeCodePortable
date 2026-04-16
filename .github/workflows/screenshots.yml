@@ -1,0 +1,60 @@
+name: Screenshots
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'launcher/**'
+      - 'scripts/capture-screenshots.mjs'
+      - 'scripts/screenshot-fixtures/**'
+      - '.github/workflows/screenshots.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: screenshots
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install freeze
+        run: |
+          VER="0.1.6"
+          curl -sSL -o freeze.tar.gz \
+               "https://github.com/charmbracelet/freeze/releases/download/v${VER}/freeze_${VER}_Linux_x86_64.tar.gz"
+          tar -xzf freeze.tar.gz
+          sudo mv freeze_${VER}_Linux_x86_64/freeze /usr/local/bin/
+          freeze --version
+
+      - name: Capture ANSI frames
+        run: node scripts/capture-screenshots.mjs
+
+      - name: Render PNGs
+        run: |
+          mkdir -p assets/screenshots
+          for name in session profile doctor; do
+              freeze \
+                  --theme dracula \
+                  --window \
+                  --padding 24 \
+                  --font.size 14 \
+                  "build/${name}.ansi" \
+                  --output "assets/screenshots/${name}.png"
+          done
+          ls -la assets/screenshots
+
+      - name: Commit updated screenshots
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'chore: refresh screenshots'
+          file_pattern: 'assets/screenshots/*.png'

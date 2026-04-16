@@ -1,6 +1,7 @@
-# ClaudePortable generates these at runtime -- never commit.
+# ClaudeCodePortable generates these at runtime -- never commit.
 app/
 profiles/
+build/
 
 # Backups + editor droppings
 *.bak

@@ -8,8 +8,8 @@ import url  from 'node:url';
 // ---------------------------------------------------------------------------
 // Roots
 // ---------------------------------------------------------------------------
-// launcher.mjs lives at  <ClaudePortable>/launcher/launcher.mjs
-// So ClaudePortable root is two levels up from this file.
+// launcher.mjs lives at  <ClaudeCodePortable>/launcher/launcher.mjs
+// So ClaudeCodePortable root is two levels up from this file.
 const __filename    = url.fileURLToPath(import.meta.url);
 const __dirname     = path.dirname(__filename);
 // launcher.mjs lives at <PORTABLE_ROOT>/launcher/launcher.mjs
@@ -23,7 +23,10 @@ export const LAUNCHER_BAT  = path.join(PORTABLE_ROOT, process.platform === 'win3
 // App / data
 // ---------------------------------------------------------------------------
 export const APP_ROOT      = path.join(PORTABLE_ROOT, 'app');
-export const PROFILES_ROOT = path.join(PORTABLE_ROOT, 'profiles');
+// Allow the profiles root to be redirected via env var (used by the
+// screenshot-capture script to point the launcher at a fixture tree
+// without touching the real profiles/ folder).
+export const PROFILES_ROOT = process.env.CLAUDE_PROFILES_ROOT || path.join(PORTABLE_ROOT, 'profiles');
 
 // Per-tool install locations
 export const NODE_DIR   = path.join(APP_ROOT, 'node');
@@ -178,6 +181,11 @@ export function profileDataDir(profileName) {
 }
 export function claudeConfigDir(profileName) {
     return path.join(profileDataDir(profileName), 'claude-config');
+}
+/** Launcher-owned metadata tree (pin state, friendly labels). Lives
+ *  outside claude-config/ so Claude never sees our sidecar files. */
+export function sessionMetaDir(profileName) {
+    return path.join(profileDataDir(profileName), 'cp-meta', 'sessions');
 }
 export function npmCacheDir(profileName) {
     return path.join(profileDataDir(profileName), 'npm-cache');

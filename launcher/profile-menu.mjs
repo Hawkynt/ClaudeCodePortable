@@ -100,6 +100,11 @@ export async function runProfileMenu({
         }
         console.log('');
 
+        if (process.env.CLAUDE_SCREENSHOT) {
+            console.log('');
+            process.exit(0);
+        }
+
         process.stdout.write('Your choice: ');
         const k = await readKey();
 

@@ -38,13 +38,17 @@ jobs:
       - name: Unit tests
         run: node --test
 
+      - name: Update CHANGELOG
+        run: node scripts/update-changelog.mjs --nightly --version "${{ steps.meta.outputs.version }}"
+
       - name: Build release zip
         run: |
           D="${{ steps.meta.outputs.date }}"
-          STAGE="ClaudePortable-nightly-${D}"
+          STAGE="ClaudeCodePortable-nightly-${D}"
           rm -rf "$STAGE" dist
           mkdir -p dist "$STAGE"
-          cp -r launcher scripts Claude.bat claude.sh README.md LICENSE .gitignore VERSION "$STAGE/"
+          cp -r launcher scripts Claude.bat claude.sh README.md LICENSE CHANGELOG.md .gitignore VERSION "$STAGE/"
+          [ -d assets ] && cp -r assets "$STAGE/" || true
           chmod +x "$STAGE/claude.sh"
           (cd . && zip -r "dist/${STAGE}.zip" "$STAGE")
           ls -la dist

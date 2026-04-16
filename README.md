@@ -1,4 +1,8 @@
-# ClaudePortable
+# ClaudeCodePortable
+
+<p align="center">
+  <img src="./assets/claude.png" alt="ClaudeCodePortable" width="180">
+</p>
 
 ![License](https://img.shields.io/github/license/Hawkynt/ClaudeCodePortable)
 ![Language](https://img.shields.io/github/languages/top/Hawkynt/ClaudeCodePortable?color=purple)
@@ -35,7 +39,7 @@ or `claude.sh` (Linux/macOS) — no admin rights required.
 ## Layout
 
 ```
-ClaudePortable/
+ClaudeCodePortable/
 ├── Claude.bat            ← Windows bootstrap (installs Node, runs launcher)
 ├── claude.sh             ← Linux/macOS bootstrap
 ├── README.md
@@ -61,7 +65,8 @@ ClaudePortable/
 │   └── powershell/       ← PowerShell 7
 └── profiles/             ← per-profile data (git-ignored)
     └── default/
-        ├── claude-config/     ← CLAUDE_CONFIG_DIR (sessions, settings, .claude.json)
+        ├── claude-config/     ← CLAUDE_CONFIG_DIR (sessions, settings, .claude.json) — owned by Claude
+        ├── cp-meta/           ← launcher-owned metadata (pin state, friendly labels) — NOT inside claude-config/
         ├── npm-cache/
         └── npm-global/        ← @anthropic-ai/claude-code lives here
 ```
@@ -102,6 +107,7 @@ then the launcher fills in the rest.
 | `--register-shell`                                      | install the Windows Explorer cascading menu (HKCU)                                                                                                                                                                                 |
 | `--unregister-shell`                                    | remove it                                                                                                                                                                                                                          |
 | `--reinstall [tool]`                                    | delete `app/<tool>` so it re-downloads next run. `tool` is one of `node` (manual delete required), `git`, `bash`, `perl`, `python`, `powershell`, `all` (default), or `claude` (wipes every profile's `npm-global` + `npm-cache`). |
+| `--doctor`                                              | health check: runtimes, active-profile Claude install, Explorer menu registry freshness, SHA256 pin coverage. Coloured report; non-zero exit on any hard failure.                                                                  |
 | `--new`                                                 | skip the session menu, start a new session                                                                                                                                                                                         |
 | `--continue` / `-c` / `--resume-last`                   | skip menu, resume last session                                                                                                                                                                                                     |
 | `--resume <id>`                                         | skip menu, resume a specific session                                                                                                                                                                                               |
@@ -119,15 +125,18 @@ Any flag not recognized by the launcher is forwarded to `claude` verbatim.
 
 ## Session menu
 
-| key                               | action                                    |
-| --------------------------------- | ----------------------------------------- |
-| `Enter`                           | resume the most recently changed session  |
-| `Esc`                             | start a new session                       |
-| `1`-`9`, `A`-`Z` (minus reserved) | resume a specific session                 |
-| `D` then `<key>`                  | delete a session (with `y/N` confirm)     |
-| `M` then `<key>`                  | move a session to another profile         |
-| `P`                               | open the profile picker                   |
-| `Q`                               | quit the launcher without starting Claude |
+| key                               | action                                                                                   |
+| --------------------------------- | ---------------------------------------------------------------------------------------- |
+| `Enter` / arrow keys              | `↑`/`↓` move highlight, `Enter` picks it. Bare `Enter` resumes the highlighted row.      |
+| `Esc`                             | start a new session (or clear an active filter)                                          |
+| `1`-`9`, `A`-`Z` (minus reserved) | resume a specific session                                                                |
+| `/`                               | open a substring filter over prompts / labels / IDs; pinned rows always show             |
+| `F` then `<key>`                  | pin / unpin a session — pinned rows sort first and always pass the filter                |
+| `R` then `<key>`                  | give a session a friendly label (stored under `cp-meta/`)                                |
+| `D` then `<key>`                  | delete a session (with `y/N` confirm)                                                    |
+| `M` then `<key>`                  | move a session to another profile                                                        |
+| `P`                               | open the profile picker                                                                  |
+| `Q`                               | quit the launcher without starting Claude                                                |
 
 ## Profile picker
 
@@ -168,6 +177,30 @@ The launcher exports:
 
 No data is sent anywhere by the launcher itself.
 
+## Screenshots
+
+<p align="center">
+  <img src="./assets/screenshots/session.png"  alt="Session picker"  width="720"><br>
+  <em>Session picker — pinned rows float to the top, labels show instead of UUIDs, arrow keys navigate.</em>
+</p>
+
+<p align="center">
+  <img src="./assets/screenshots/profile.png"  alt="Profile picker"  width="720"><br>
+  <em>Profile picker — independent logins, per-profile session counts, optional housekeeping keys.</em>
+</p>
+
+<p align="center">
+  <img src="./assets/screenshots/doctor.png"   alt="Doctor output"   width="720"><br>
+  <em><code>Claude.bat --doctor</code> — verifies every pinned runtime, the Claude install, and the Explorer menu.</em>
+</p>
+
+_The PNGs are regenerated automatically by `.github/workflows/screenshots.yml` whenever the launcher menus change._
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to run the tests, add a
+new portable tool, or extend the menus.
+
 ## Uninstalling
 
 Remove the folder. If you registered the Explorer context menu, run
@@ -195,7 +228,7 @@ Ubuntu, Windows, and macOS (`.github/workflows/ci.yml`).
 Every push to `main` triggers `.github/workflows/nightly.yml`, which:
 
 1. Runs the full test suite.
-2. Builds `ClaudePortable-nightly-YYYY-MM-DD.zip`.
+2. Builds `ClaudeCodePortable-nightly-YYYY-MM-DD.zip`.
 3. Publishes it as a GitHub pre-release with tag `nightly-YYYY-MM-DD`.
    Pushing again on the same day overwrites the existing nightly.
 4. Prunes old nightlies with a promotion-based Grandfather-Father-Son
@@ -215,7 +248,7 @@ without ever cutting a tag.
 
 1. Bump `VERSION` if you want a new major/minor/patch base.
 2. Tag the release: `git tag v1.0.0 && git push --tags`.
-3. `.github/workflows/release.yml` builds `ClaudePortable-<version>.zip`
+3. `.github/workflows/release.yml` builds `ClaudeCodePortable-<version>.zip`
    and attaches it to an auto-generated GitHub release.
 
 ### Version format

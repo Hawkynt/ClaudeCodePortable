@@ -18,10 +18,20 @@ export function profilePath(name) {
 }
 
 export function listProfileNames() {
-    if (!fs.existsSync(PROFILES_ROOT)) return [];
-    return fs.readdirSync(PROFILES_ROOT, { withFileTypes: true })
-        .filter(d => d.isDirectory())
-        .map(d => d.name);
+    let entries;
+    try { entries = fs.readdirSync(PROFILES_ROOT, { withFileTypes: true }); }
+    catch { return []; }
+    const out = [];
+    for (const d of entries) {
+        try {
+            if (!d.isDirectory()) continue;
+        } catch { continue; }
+        // Skip names that can't address a profile (leading dot/dash,
+        // path-problematic chars) so the picker never renders a broken row.
+        if (!isValidProfileName(d.name)) continue;
+        out.push(d.name);
+    }
+    return out;
 }
 
 export function createProfile(name) {
@@ -64,30 +74,35 @@ export function getProfileInfo(name) {
         lastUsed: null,
     };
 
-    const claudeJson = path.join(dir, 'claude-config', '.claude.json');
-    if (fs.existsSync(claudeJson)) {
-        try {
+    // Email: anything going wrong parsing .claude.json leaves the default
+    // "<not logged in>" string in place. Corrupted JSON never throws up.
+    try {
+        const claudeJson = path.join(dir, 'claude-config', '.claude.json');
+        if (fs.existsSync(claudeJson)) {
             const raw = fs.readFileSync(claudeJson, 'utf8');
             const j = JSON.parse(raw);
-            if (j.oauthAccount && j.oauthAccount.emailAddress) {
+            if (j && j.oauthAccount && j.oauthAccount.emailAddress) {
                 info.email = String(j.oauthAccount.emailAddress);
             }
-        } catch { /* ignore */ }
-    }
-
-    const projects = path.join(dir, 'claude-config', 'projects');
-    if (fs.existsSync(projects)) {
-        const files = walkJsonl(projects);
-        info.sessionCount = files.length;
-        let newest = 0;
-        for (const f of files) {
-            try {
-                const st = fs.statSync(f);
-                if (st.mtimeMs > newest) newest = st.mtimeMs;
-            } catch { /* ignore */ }
         }
-        info.lastUsed = newest > 0 ? new Date(newest) : null;
-    }
+    } catch { /* keep default */ }
+
+    // Session count + lastUsed: tolerate any fs error
+    try {
+        const projects = path.join(dir, 'claude-config', 'projects');
+        if (fs.existsSync(projects)) {
+            const files = walkJsonl(projects);
+            info.sessionCount = files.length;
+            let newest = 0;
+            for (const f of files) {
+                try {
+                    const st = fs.statSync(f);
+                    if (st.mtimeMs > newest) newest = st.mtimeMs;
+                } catch { /* skip this file */ }
+            }
+            info.lastUsed = newest > 0 ? new Date(newest) : null;
+        }
+    } catch { /* keep zero / null */ }
 
     return info;
 }
@@ -101,8 +116,10 @@ function walkJsonl(root) {
         try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { continue; }
         for (const e of entries) {
             const p = path.join(d, e.name);
-            if (e.isDirectory()) stack.push(p);
-            else if (e.isFile() && e.name.endsWith('.jsonl')) out.push(p);
+            try {
+                if (e.isDirectory()) stack.push(p);
+                else if (e.isFile() && e.name.endsWith('.jsonl')) out.push(p);
+            } catch { /* skip */ }
         }
     }
     return out;

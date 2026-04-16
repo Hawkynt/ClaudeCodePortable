@@ -1,4 +1,4 @@
-// ClaudePortable launcher entry point.
+// ClaudeCodePortable launcher entry point.
 //
 // Orchestrates:
 //   1. Argument parsing
@@ -32,6 +32,7 @@ import { runProfileMenu }  from './profile-menu.mjs';
 import {
     installShell, uninstallShell, isShellRegistered,
 } from './registry.mjs';
+import { runDoctor } from './doctor.mjs';
 import {
     findSessionByIdAcrossProfiles, moveSessionBetweenProfiles,
 } from './sessions.mjs';
@@ -75,6 +76,13 @@ import {
     if (args.mode === 'reinstall') {
         handleReinstall(args.reinstallTarget || 'all');
         process.exit(0);
+    }
+    if (args.mode === 'doctor') {
+        setupPath();                                          // give probes the portable PATH
+        setPrivacyEnv();
+        const profile = resolveProfileForDoctor(args);
+        const code = runDoctor(profile);
+        process.exit(code);
     }
 
     // Runtime installation --------------------------------------------------
@@ -189,7 +197,7 @@ function handleReinstall(target) {
         if (name === 'node') {
             // We're currently running from app/node -- can't wipe our own feet.
             console.log(color('yellow',
-                'Skipping node: it is currently in use. Close all ClaudePortable launchers, then manually delete:\n  ' + dir));
+                'Skipping node: it is currently in use. Close all ClaudeCodePortable launchers, then manually delete:\n  ' + dir));
             continue;
         }
         if (!fs.existsSync(dir)) {
@@ -237,6 +245,17 @@ function handleMoveSession({ id, to, from }) {
     console.log(color('green', `Moved session ${id}:`));
     console.log(color('darkgreen', `  from: profiles/${hit.profile}/claude-config/projects/${cwdEncoded}/`));
     console.log(color('darkgreen', `  to:   profiles/${to}/claude-config/projects/${cwdEncoded}/`));
+}
+
+function resolveProfileForDoctor(args) {
+    // Prefer an explicit --profile, then env, else the first available name,
+    // else literal 'default'. We never launch a picker for --doctor.
+    if (args.profile) return args.profile;
+    if (process.env.CLAUDE_PROFILE) return process.env.CLAUDE_PROFILE;
+    const names = listProfileNames();
+    if (names.length === 1) return names[0];
+    if (names.includes('default')) return 'default';
+    return names[0] || 'default';
 }
 
 function resolveProfile(args) {

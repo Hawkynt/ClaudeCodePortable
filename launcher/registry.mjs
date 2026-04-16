@@ -1,6 +1,8 @@
 // Windows Explorer context-menu register/unregister via reg.exe.
 // No-op on non-Windows.
 
+import fs   from 'node:fs';
+import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { listProfileNames } from './profiles.mjs';
 import { LAUNCHER_BAT, PORTABLE_ROOT } from './paths.mjs';
@@ -46,7 +48,13 @@ export function installShell({ scope = 'User' } = {}) {
         `${base}\\Directory\\Background\\shell\\ClaudeCode`,
     ];
     const subRoot = `${base}\\ClaudeCodeCmds`;
-    const ICON    = '%SystemRoot%\\System32\\shell32.dll,71';
+
+    // Use the bundled icon if present; fall back to a generic shell32 icon
+    // so the submenu still renders on a bare clone.
+    const customIcon = path.join(PORTABLE_ROOT, 'assets', 'claude.ico');
+    const ICON = fs.existsSync(customIcon)
+        ? customIcon
+        : '%SystemRoot%\\System32\\shell32.dll,71';
 
     // Start with a clean submenu subtree so stale profiles vanish.
     regDelete(subRoot);

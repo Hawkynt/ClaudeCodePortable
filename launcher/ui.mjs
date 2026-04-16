@@ -15,6 +15,7 @@ const colorCode = {
     cyan:        '36', white:       '37', gray:        '90',
     darkred:     '31', darkgreen:   '32', darkyellow:  '33',
     darkblue:    '34', darkmagenta: '35', darkcyan:    '36',
+    darkgray:    '90',
     brightred:    '91', brightgreen:   '92', brightyellow:  '93',
     brightblue:   '94', brightmagenta: '95', brightcyan:    '96',
     brightwhite:  '97',
@@ -114,6 +115,67 @@ export function readLine(prompt = '') {
     });
 }
 
+/**
+ * Line-buffered read that temporarily disables raw mode so the menu's
+ * keypress loop can prompt for a string (filter, rename) and then resume
+ * keypress handling. `Esc` cancels and resolves to `null`.
+ */
+export async function readLineRaw(prompt = '') {
+    const stdin = process.stdin;
+    if (!stdin.isTTY) return await readLine(prompt);
+
+    const wasRaw = stdin.isRaw;
+    if (wasRaw) stdin.setRawMode(false);
+    stdin.resume();
+
+    const result = await new Promise((resolve) => {
+        let buf = '';
+        let done = false;
+        let swallowNextLf = false;
+        process.stdout.write(prompt);
+
+        const onData = (chunk) => {
+            const s = chunk.toString('utf8');
+            for (const ch of s) {
+                if (done) {
+                    // Stay attached briefly to swallow a stray \n after \r
+                    // so the next readKey() doesn't see a phantom Enter.
+                    if (swallowNextLf && ch === '\n') { swallowNextLf = false; }
+                    continue;
+                }
+                if (ch === '\x1b') {                          // Esc cancels
+                    done = true;
+                    process.stdout.write('\n');
+                    setImmediate(() => { stdin.off('data', onData); resolve(null); });
+                    return;
+                }
+                if (ch === '\r' || ch === '\n') {
+                    done = true;
+                    swallowNextLf = (ch === '\r');
+                    process.stdout.write('\n');
+                    setImmediate(() => { stdin.off('data', onData); resolve(buf); });
+                    return;
+                }
+                if (ch === '\x7f' || ch === '\b') {          // backspace
+                    if (buf.length > 0) {
+                        buf = buf.slice(0, -1);
+                        process.stdout.write('\b \b');
+                    }
+                    continue;
+                }
+                if (ch >= ' ' && ch !== '\x7f') {
+                    buf += ch;
+                    process.stdout.write(ch);
+                }
+            }
+        };
+        stdin.on('data', onData);
+    });
+
+    if (wasRaw) stdin.setRawMode(true);
+    return result;
+}
+
 export async function promptYesNo(question) {
     process.stdout.write(c.yellow(question + ' [y/N] '));
     const k = await readKey();
@@ -136,7 +198,11 @@ export function relativeTime(date) {
     if (!date) return '(never used)';
     const d = date instanceof Date ? date : new Date(date);
     if (isNaN(d.getTime())) return '?';
-    const delta = (Date.now() - d.getTime()) / 1000;
+    // Honor a fixed "now" for deterministic screenshots (CLAUDE_FIXED_NOW).
+    const now = process.env.CLAUDE_FIXED_NOW
+        ? Date.parse(process.env.CLAUDE_FIXED_NOW)
+        : Date.now();
+    const delta = (now - d.getTime()) / 1000;
     if (delta < 0) return d.toISOString().slice(0, 10);
     if (delta < 45) return `${Math.round(delta)}s ago`;
     if (delta < 60 * 60) return `${Math.round(delta / 60)}m ago`;

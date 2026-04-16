@@ -1,6 +1,6 @@
 @echo off
 REM ==========================================================================
-REM  ClaudePortable bootstrap (Windows)
+REM  ClaudeCodePortable bootstrap (Windows)
 REM    Ensures a SHA256-verified portable Node is installed under app/node,
 REM    then hands off to launcher/launcher.mjs. Everything else -- Git, bash,
 REM    perl, python, PowerShell, profile management, session menus, Explorer

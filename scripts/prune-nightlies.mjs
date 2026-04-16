@@ -25,25 +25,39 @@ function gh(args, opts = {}) {
 
 function listNightlies() {
     const out = gh(['release', 'list', '--limit', '200', '--json', 'tagName,createdAt,isPrerelease']);
-    const all = JSON.parse(out);
+    let all;
+    try { all = JSON.parse(out); }
+    catch (e) {
+        console.error(`warning: unparseable gh output (${e.message}); skipping prune.`);
+        return [];
+    }
+    if (!Array.isArray(all)) return [];
     return parseNightlies(all);
 }
 
-/** Exported so tests can exercise it against synthetic input. */
+/** Exported so tests can exercise it against synthetic input. Silently drops
+ *  entries that don't match the nightly-YYYY-MM-DD tag shape or that throw
+ *  while constructing their Date. */
 export function parseNightlies(raw) {
+    if (!Array.isArray(raw)) return [];
     const re = /^nightly-(\d{4})-(\d{2})-(\d{2})$/;
-    return raw
-        .map(r => {
+    const out = [];
+    for (const r of raw) {
+        try {
+            if (!r || typeof r.tagName !== 'string') continue;
             const m = re.exec(r.tagName);
-            if (!m) return null;
-            return {
+            if (!m) continue;
+            const date = new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00Z`);
+            if (isNaN(date.getTime())) continue;
+            out.push({
                 tag:  r.tagName,
-                date: new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00Z`),
+                date,
                 iso:  `${m[1]}-${m[2]}-${m[3]}`,
-            };
-        })
-        .filter(Boolean)
-        .sort((a, b) => b.date.getTime() - a.date.getTime());
+            });
+        } catch { /* skip this entry */ }
+    }
+    out.sort((a, b) => b.date.getTime() - a.date.getTime());
+    return out;
 }
 
 export function isoWeekKey(d) {

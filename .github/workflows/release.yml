@@ -36,20 +36,24 @@ jobs:
       - name: Unit tests
         run: node --test
 
+      - name: Update CHANGELOG
+        run: node scripts/update-changelog.mjs --release "${GITHUB_REF_NAME}"
+
       - name: Build release zip
         run: |
           V="${{ steps.version.outputs.version }}"
-          STAGE="ClaudePortable-${V}"
+          STAGE="ClaudeCodePortable-${V}"
           rm -rf "$STAGE" dist
           mkdir -p dist "$STAGE"
-          cp -r launcher scripts Claude.bat claude.sh README.md LICENSE .gitignore VERSION "$STAGE/"
+          cp -r launcher scripts Claude.bat claude.sh README.md LICENSE CHANGELOG.md .gitignore VERSION "$STAGE/"
+          [ -d assets ] && cp -r assets "$STAGE/" || true
           chmod +x "$STAGE/claude.sh"
           (cd "$(dirname "$STAGE")" && zip -r "dist/${STAGE}.zip" "$STAGE")
           ls -la dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ClaudePortable
+          name: ClaudeCodePortable
           path: dist/*.zip
 
   release:
@@ -59,7 +63,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: ClaudePortable
+          name: ClaudeCodePortable
           path: dist
 
       - name: Create GitHub Release

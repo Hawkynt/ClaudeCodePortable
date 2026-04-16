@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  ClaudePortable bootstrap (Linux/macOS)
+#  ClaudeCodePortable bootstrap (Linux/macOS)
 #    Ensures a SHA256-verified portable Node is installed under app/node,
 #    then hands off to launcher/launcher.mjs.
 # =============================================================================
