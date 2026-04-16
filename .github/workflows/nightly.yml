@@ -1,7 +1,11 @@
 name: Nightly
 
+# Runs after CI signals success on master/main. A red CI run will never
+# produce a nightly, so the "latest" link always points at a tested build.
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [master, main]
   workflow_dispatch:
 
@@ -17,11 +21,18 @@ env:
 
 jobs:
   nightly:
+    # Gate on the upstream CI run (workflow_run path). A manual dispatch
+    # (workflow_dispatch) has no workflow_run payload, so allow that too.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0                           # version.pl needs full history
+          # When triggered by workflow_run, check out the exact SHA the
+          # CI run validated -- otherwise we'd grab whatever is at the tip
+          # of the branch right now, which may have moved.
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+          fetch-depth: 0                              # version.pl needs full history
 
       - name: Compute date + version
         id: meta
@@ -37,9 +48,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-
-      - name: Unit tests
-        run: node --test
 
       - name: Update CHANGELOG
         run: node scripts/update-changelog.mjs --nightly --version "${{ steps.meta.outputs.version }}"
@@ -71,7 +79,7 @@ jobs:
           gh release create "${{ steps.meta.outputs.tag }}" \
               --title "Nightly ${{ steps.meta.outputs.date }} (${{ steps.meta.outputs.version }})" \
               --prerelease \
-              --notes "Automated build of commit \`${GITHUB_SHA}\`.
+              --notes "Automated build of commit \`${{ github.event.workflow_run.head_sha || github.sha }}\`.
 
           Version: \`${{ steps.meta.outputs.version }}\`
 

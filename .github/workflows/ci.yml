@@ -5,6 +5,10 @@ on:
     branches: [master, main]
   pull_request:
     branches: [master, main]
+  # Reusable: release.yml calls this with `uses: ./.github/workflows/ci.yml`
+  # so the release pipeline gates on the exact same test matrix without
+  # copy-pasting it. Nightly depends on CI via workflow_run (decoupled).
+  workflow_call: {}
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'

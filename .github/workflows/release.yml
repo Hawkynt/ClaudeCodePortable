@@ -1,5 +1,8 @@
 name: Release
 
+# Tag pushes don't trigger CI (CI is branch-scoped), so the release
+# pipeline gates itself: the `build` job only runs if the `test` job
+# passes, and `publish` only runs if `build` produced an artifact.
 on:
   push:
     tags: ['v*']
@@ -16,14 +19,22 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
+  # Re-runs the full CI matrix (ubuntu / windows / macOS, Node 22, unit
+  # tests + bootstrap smoke test). Tag pushes don't trigger ci.yml on
+  # their own -- calling it here keeps release gated on the same signal
+  # without duplicating the steps.
+  test:
+    uses: ./.github/workflows/ci.yml
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0                          # version.pl needs full history for commit count
+          fetch-depth: 0                          # version.pl needs full history
 
       - name: Compute version
         id: version
@@ -35,9 +46,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-
-      - name: Unit tests
-        run: node --test
 
       - name: Update CHANGELOG
         run: node scripts/update-changelog.mjs --release "${GITHUB_REF_NAME}"
@@ -59,7 +67,7 @@ jobs:
           name: ClaudeCodePortable
           path: dist/*.zip
 
-  release:
+  publish:
     needs: build
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest

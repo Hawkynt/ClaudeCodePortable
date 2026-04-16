@@ -23,9 +23,8 @@ export const LAUNCHER_BAT  = path.join(PORTABLE_ROOT, process.platform === 'win3
 // App / data
 // ---------------------------------------------------------------------------
 export const APP_ROOT      = path.join(PORTABLE_ROOT, 'app');
-// Allow the profiles root to be redirected via env var (used by the
-// screenshot-capture script to point the launcher at a fixture tree
-// without touching the real profiles/ folder).
+// Allow the profiles root to be redirected via env var -- handy for
+// isolated integration tests that point the launcher at a fixture tree.
 export const PROFILES_ROOT = process.env.CLAUDE_PROFILES_ROOT || path.join(PORTABLE_ROOT, 'profiles');
 
 // Per-tool install locations

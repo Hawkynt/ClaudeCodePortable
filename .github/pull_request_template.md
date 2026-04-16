@@ -10,9 +10,8 @@
 
 - [ ] `node --test` passes.
 - [ ] `Claude.bat --doctor` (or `./claude.sh --doctor`) is still green.
-- [ ] Screenshots regenerated if any menu UI changed:
-      `node scripts/capture-screenshots.mjs` locally, or let the
-      `Screenshots` workflow refresh them on push.
+- [ ] If a menu's rendered text changed, the corresponding code block in
+      `README.md` (under `## Screenshots`) was refreshed by hand.
 
 ## Notes
 

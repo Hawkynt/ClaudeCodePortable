@@ -20,19 +20,16 @@ node --test
 
 # Health check
 ./Claude.bat --doctor
-
-# Regenerate screenshots locally (requires `freeze` installed)
-node scripts/capture-screenshots.mjs
 ```
 
 ## Repository layout
 
 ```
 launcher/        ES-module launcher (entry: launcher.mjs)
-scripts/        build-time helpers (version.pl, prune-nightlies, update-changelog, capture-screenshots)
+scripts/        build-time helpers (version.pl, prune-nightlies, update-changelog)
 tests/          node --test unit tests
-assets/         icon + generated screenshots
-.github/        CI, release, nightly, screenshots workflows
+assets/         icon + logo
+.github/        CI, release, nightly workflows
 app/            portable runtimes, auto-downloaded (git-ignored)
 profiles/      per-profile data, auto-created  (git-ignored)
 ```

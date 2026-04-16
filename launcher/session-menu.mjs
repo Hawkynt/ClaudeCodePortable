@@ -66,7 +66,6 @@ export async function runSessionMenu({ profileName, cwd }) {
             console.log(color('green',
                 '  [Enter] / [Esc] / any key  -  clear filter and show all sessions'));
             console.log('');
-            if (process.env.CLAUDE_SCREENSHOT) { filter = ''; highlight = 0; process.exit(0); }
             process.stdout.write('Press any key... ');
             await readKey();
             filter = '';
@@ -122,13 +121,6 @@ export async function runSessionMenu({ profileName, cwd }) {
             '[F <key>] pin   [R <key>] rename   [D <key>] delete' +
             moveHint + '   [P] profiles   [Q] quit'));
         console.log('');
-
-        if (process.env.CLAUDE_SCREENSHOT) {
-            // Screenshot-capture mode: render one frame and exit cleanly
-            // so a tool like `freeze` has a stable ANSI buffer to render.
-            console.log('');
-            process.exit(0);
-        }
 
         process.stdout.write('Your choice: ');
         const k = await readKey();

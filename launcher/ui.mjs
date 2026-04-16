@@ -198,7 +198,7 @@ export function relativeTime(date) {
     if (!date) return '(never used)';
     const d = date instanceof Date ? date : new Date(date);
     if (isNaN(d.getTime())) return '?';
-    // Honor a fixed "now" for deterministic screenshots (CLAUDE_FIXED_NOW).
+    // Honor a fixed "now" so tests and demos can produce deterministic output.
     const now = process.env.CLAUDE_FIXED_NOW
         ? Date.parse(process.env.CLAUDE_FIXED_NOW)
         : Date.now();

@@ -9,7 +9,6 @@
 [![CI](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/ci.yml/badge.svg)](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/ci.yml)
 [![Nightly](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/nightly.yml/badge.svg)](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/nightly.yml)
 [![Release](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/release.yml/badge.svg)](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/release.yml)
-[![Screenshots](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/screenshots.yml/badge.svg)](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/screenshots.yml)
 [![Last Commit](https://img.shields.io/github/last-commit/Hawkynt/ClaudeCodePortable?branch=master) ![Activity](https://img.shields.io/github/commit-activity/y/Hawkynt/ClaudeCodePortable?branch=master)](https://github.com/Hawkynt/ClaudeCodePortable/commits/master)
 ![LineCount](https://tokei.rs/b1/github/Hawkynt/ClaudeCodePortable?color=magenta)
 ![Size](https://img.shields.io/github/languages/code-size/Hawkynt/ClaudeCodePortable?color=green) / ![Repo-Size](https://img.shields.io/github/repo-size/Hawkynt/ClaudeCodePortable?color=red)
@@ -186,22 +185,70 @@ No data is sent anywhere by the launcher itself.
 
 ## Screenshots
 
-<p align="center">
-  <img src="./assets/screenshots/session.png"  alt="Session picker"  width="720"><br>
-  <em>Session picker — pinned rows float to the top, labels show instead of UUIDs, arrow keys navigate.</em>
-</p>
+### Session picker
 
-<p align="center">
-  <img src="./assets/screenshots/profile.png"  alt="Profile picker"  width="720"><br>
-  <em>Profile picker — independent logins, per-profile session counts, optional housekeeping keys.</em>
-</p>
+Pinned rows float to the top, labels show instead of UUIDs, arrow keys navigate, `/` filters.
 
-<p align="center">
-  <img src="./assets/screenshots/doctor.png"   alt="Doctor output"   width="720"><br>
-  <em><code>Claude.bat --doctor</code> — verifies every pinned runtime, the Claude install, and the Explorer menu.</em>
-</p>
+```text
+================================================================
+ Claude [default] - sessions in D:\Projects\acme-dashboard
+================================================================
+ runtimes: node 22.16.0 | bash 5.2.37 | perl 5.38.2 | python 3.13.1
 
-_The PNGs are regenerated automatically by `.github/workflows/screenshots.yml` whenever the launcher menus change._
+*>[1]  started 2026-04-17 11:00  |  last       3d ago  |     42 msgs
+       label:   doctor health check
+       initial: implement doctor health check for runtimes
+       last:    ensure it never throws mid-report
+
+  [2]  started 2026-04-19 12:00  |  last      23h ago  |    128 msgs
+       initial: add a portable node+git+python launcher with session picker
+       last:    also add GFS pruning for nightlies
+
+  [3]  started 2026-04-12 15:15  |  last       8d ago  |     37 msgs
+       initial: initial prototype: read JSONL, display session list
+       last:    color the newest session green
+
+[Enter/↑↓] pick   [Esc] NEW   [/] filter   [F <key>] pin   [R <key>] rename   [D <key>] delete   [M <key>] move   [P] profiles   [Q] quit
+```
+
+### Profile picker
+
+Independent logins, per-profile session counts, in-menu create / delete / rename housekeeping.
+
+```text
+================================================================
+ Select Claude profile
+================================================================
+ runtimes: node 22.16.0 | bash 5.2.37 | perl 5.38.2 | python 3.13.1
+
+ [1] default      |  me@example.com        |  last 2h ago          |    3 sessions
+ [2] work         |  work@example.com      |  last 5d ago          |   12 sessions
+ [3] experiments  |  (not logged in)       |  last (never used)    |    0 sessions
+
+[Enter] default       [Esc] abort   [Q] quit
+[N] new profile    [D <key>] delete    [R <key>] rename    [X] register Explorer menu
+```
+
+### `--doctor`
+
+Verifies every pinned runtime, the Claude install, and the Explorer menu freshness.
+
+```text
+Running ClaudeCodePortable doctor...
+
+  [ ok ]  node         22.16.0 (matches pin)
+  [ ok ]  git          2.47.1 (MinGit)
+  [ ok ]  bash         5.2.37 (bundled PortableGit)
+  [ ok ]  perl         5.38.2 (bundled from PortableGit; no standalone pin)
+  [ ok ]  python       3.13.1 (matches pin)
+  [ ok ]  pwsh         7.4.6 (matches pin)
+  [ ok ]  sha256 pins  all tools pinned for current platform
+  [skip]  shell-menu   not registered (run --register-shell to install)
+  [ ok ]  profile      default · me@example.com · 57 session(s)
+
+8 green,  0 yellow,  0 red,  1 skipped
+```
+
 
 ## Contributing
 
