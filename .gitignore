@@ -1,0 +1,18 @@
+# ClaudePortable generates these at runtime -- never commit.
+app/
+profiles/
+
+# Backups + editor droppings
+*.bak
+*.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# Local-only scratch
+_*.bat
+_*.ps1
+_*.ps1_
+_*.mjs
+_*.sh
