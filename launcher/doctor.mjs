@@ -119,8 +119,8 @@ export function checkActiveProfile(profileName) {
         const cfg = claudeConfigDir(profileName);
         if (!fs.existsSync(cfg)) return fail('profile', `claude-config missing for ${profileName}`);
         const info = getProfileInfo(profileName);
-        const cliPath = claudeCli(profileName);
-        if (!fs.existsSync(cliPath)) return warn('profile',
+        const cli = claudeCli(profileName);
+        if (cli.kind === 'missing' || !fs.existsSync(cli.path)) return warn('profile',
             `${profileName}: Claude Code not installed (will install on next launch)`);
         return ok('profile', `${profileName} · ${info.email} · ${info.sessionCount} session(s)`);
     } catch (e) { return fail('profile', e.message); }

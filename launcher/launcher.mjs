@@ -126,12 +126,10 @@ import {
             else if (res.action === 'new') sessionArgs = [];
         }
 
-        // Launch Claude. We spawn `node cli.js` directly instead of going
-        // through the claude.cmd wrapper -- Node's stdio inheritance through
-        // a .cmd file on Windows is unreliable and can cause the child to
-        // exit before drawing any UI.
-        const cliJs    = claudeCli(profileName);
-        const nodeExe  = path.join(nodeBinDir(), IS_WIN ? 'node.exe' : 'node');
+        // Launch Claude. claude-code v2+ ships a native binary we can exec
+        // directly (no .cmd shim, no node wrapper) so stdio inherits cleanly.
+        // Legacy JS entry points still work via `node <script>`.
+        const cli = claudeCli(profileName);
 
         console.log('');
         console.log(color('green', 'Starting Claude Code (Portable)...'));
@@ -140,8 +138,16 @@ import {
         if (sessionArgs.length) console.log('Session:          ' + sessionArgs.join(' '));
         console.log('');
 
-        const finalArgs = [cliJs, '--dangerously-skip-permissions', ...sessionArgs, ...args.forwarded];
-        const r = spawnSync(nodeExe, finalArgs, { stdio: 'inherit' });
+        const userArgs = ['--dangerously-skip-permissions', ...sessionArgs, ...args.forwarded];
+        let cmd, cmdArgs;
+        if (cli.kind === 'native') {
+            cmd = cli.path;
+            cmdArgs = userArgs;
+        } else {
+            cmd = path.join(nodeBinDir(), IS_WIN ? 'node.exe' : 'node');
+            cmdArgs = [cli.path, ...userArgs];
+        }
+        const r = spawnSync(cmd, cmdArgs, { stdio: 'inherit' });
         if (r.error) {
             console.error(color('red', 'Failed to start Claude: ' + r.error.message));
             process.exit(1);

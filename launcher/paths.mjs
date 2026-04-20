@@ -206,19 +206,49 @@ export function nodeBinDir() {
 }
 
 /**
- * Resolve the absolute path to the Claude Code CLI script (cli.js). Spawning
- * `node cli.js` directly avoids the wrapper .cmd/shell-script shenanigans
- * of `claude.cmd`, which in turn eliminates stdio inheritance issues when
- * node spawns a batch file without `shell: true`.
+ * Resolve how to launch Claude Code for the given profile.
+ *
+ * claude-code v2.x ships a native binary at <pkg>/bin/claude[.exe] that
+ * the package's postinstall copies from the platform-specific optional
+ * dependency. We spawn it directly (no node wrapper, no .cmd shim) so
+ * stdio inherits cleanly.
+ *
+ * Older versions (<2.x) shipped a `cli.js` entry point and no native
+ * binary; we still handle that so an existing install keeps working.
+ *
+ * Returns { kind, path } where:
+ *   - kind: 'native'  → exec `path` directly.
+ *   - kind: 'node'    → run node on `path` (cli-wrapper.cjs or legacy cli.js).
+ *   - kind: 'missing' → nothing installed yet; install.mjs should npm-install.
  */
 export function claudeCli(profileName) {
     const global = npmGlobalDir(profileName);
-    // npm on Windows lays out global packages flat under npm-global/
-    // node_modules; on Unix under lib/node_modules.
-    const candidates = [
-        path.join(global, 'node_modules', '@anthropic-ai', 'claude-code', 'cli.js'),
-        path.join(global, 'lib', 'node_modules', '@anthropic-ai', 'claude-code', 'cli.js'),
+    // Windows: flat under npm-global/node_modules. Unix: lib/node_modules.
+    const pkgDirs = [
+        path.join(global, 'node_modules', '@anthropic-ai', 'claude-code'),
+        path.join(global, 'lib', 'node_modules', '@anthropic-ai', 'claude-code'),
     ];
-    for (const c of candidates) if (fs.existsSync(c)) return c;
-    return candidates[0]; // best-effort; install step will put it there
+    const nativeName = IS_WIN ? 'claude.exe' : 'claude';
+    for (const pkgDir of pkgDirs) {
+        if (!fs.existsSync(pkgDir)) continue;
+        // New layout: native binary placed by postinstall. The package ships
+        // a tiny stub at this path; postinstall replaces it with the real
+        // ~hundreds-of-MB binary. A size check distinguishes the two so we
+        // fall back to the JS wrapper if postinstall didn't run.
+        const native = path.join(pkgDir, 'bin', nativeName);
+        if (fs.existsSync(native)) {
+            try {
+                if (fs.statSync(native).size > 1_000_000) {
+                    return { kind: 'native', path: native };
+                }
+            } catch {}
+        }
+        // Postinstall didn't place the real binary (e.g. --omit=optional).
+        const wrapper = path.join(pkgDir, 'cli-wrapper.cjs');
+        if (fs.existsSync(wrapper)) return { kind: 'node', path: wrapper };
+        // Legacy (pre-v2) layout.
+        const cliJs = path.join(pkgDir, 'cli.js');
+        if (fs.existsSync(cliJs)) return { kind: 'node', path: cliJs };
+    }
+    return { kind: 'missing', path: path.join(pkgDirs[0], 'bin', nativeName) };
 }

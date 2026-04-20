@@ -254,10 +254,70 @@ function todayYmd() {
     return d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
 }
 
+/**
+ * On Windows a running .exe cannot be overwritten -- npm's reinstall will
+ * fail with EBUSY whenever another Claude session holds the binary. We
+ * probe by opening for write (same sharing semantics, zero side effects).
+ *
+ * Two files matter: the top-level bin/claude.exe, plus the platform-specific
+ * optional-dep (claude-code-win32-xxx/claude.exe) that postinstall copies from.
+ * install.cjs hardlinks when it can but falls back to a plain copy, so the
+ * two are often distinct inodes and either can be the one that's running.
+ * npm's reinstall touches both paths, so a lock on either blocks the update.
+ *
+ * Unix tolerates overwriting a running binary via inode replacement.
+ */
+function claudeBinaryIsLocked(cli) {
+    if (!IS_WIN || cli.kind !== 'native') return false;
+    const pkgDir = path.dirname(path.dirname(cli.path));
+    const candidates = [cli.path];
+    try {
+        const optDepRoot = path.join(pkgDir, 'node_modules', '@anthropic-ai');
+        for (const name of fs.readdirSync(optDepRoot)) {
+            if (!name.startsWith('claude-code-')) continue;
+            const exe = path.join(optDepRoot, name, 'claude.exe');
+            if (fs.existsSync(exe)) candidates.push(exe);
+        }
+    } catch {}
+    for (const p of candidates) {
+        let fd;
+        try {
+            fd = fs.openSync(p, 'r+');
+        } catch (e) {
+            if (e.code === 'EBUSY' || e.code === 'EPERM') return true;
+        } finally {
+            if (fd !== undefined) try { fs.closeSync(fd); } catch {}
+        }
+    }
+    return false;
+}
+
+/**
+ * Run `npm install -g ...` against the portable Node, bypassing the .cmd
+ * shim. Node 22 refuses to spawn .bat/.cmd files without shell:true as a
+ * side effect of the CVE-2024-27980 fix -- the spawn fails with EINVAL and
+ * status ends up null. Invoking npm-cli.js directly via node sidesteps the
+ * whole shell-wrapper path and works on every platform.
+ */
+function runNpmInstall(env) {
+    const nodeExe = path.join(nodeBinDir(), IS_WIN ? 'node.exe' : 'node');
+    const npmCli  = path.join(nodeBinDir(),
+        IS_WIN ? 'node_modules/npm/bin/npm-cli.js'
+               : '../lib/node_modules/npm/bin/npm-cli.js');
+    return spawnSync(nodeExe,
+        [npmCli, 'install', '-g', '@anthropic-ai/claude-code@latest'],
+        { stdio: 'inherit', env, windowsHide: true });
+}
+
+function npmFailureDetail(r) {
+    if (r.error) return r.error.code || r.error.message;
+    if (r.signal) return `signal ${r.signal}`;
+    return `exit ${r.status}`;
+}
+
 export function ensureClaudeCode(profileName) {
-    const exe   = claudeCli(profileName);
+    const cli   = claudeCli(profileName);
     const stamp = lastUpdateFile(profileName);
-    const npm   = IS_WIN ? path.join(nodeBinDir(), 'npm.cmd') : path.join(nodeBinDir(), 'npm');
 
     // Set npm env explicitly so the install lands in the profile-scoped dirs
     // even when the launcher inherits other values.
@@ -267,12 +327,11 @@ export function ensureClaudeCode(profileName) {
         npm_config_prefix: npmGlobalDir(profileName),
     };
 
-    if (!fs.existsSync(exe)) {
+    if (cli.kind === 'missing') {
         console.log(color('cyan', `Installing Claude Code into profile [${profileName}] ...`));
-        const r = spawnSync(npm, ['install', '-g', '@anthropic-ai/claude-code@latest'],
-            { stdio: 'inherit', env, windowsHide: true });
-        if (r.status !== 0 || !fs.existsSync(exe)) {
-            throw new Error('Failed to install Claude Code.');
+        const r = runNpmInstall(env);
+        if (r.status !== 0 || claudeCli(profileName).kind === 'missing') {
+            throw new Error(`Failed to install Claude Code (${npmFailureDetail(r)}).`);
         }
         fs.writeFileSync(stamp, todayYmd());
         return;
@@ -282,13 +341,18 @@ export function ensureClaudeCode(profileName) {
     let last = '';
     try { last = fs.readFileSync(stamp, 'utf8').trim(); } catch {}
     if (last !== todayYmd()) {
+        if (claudeBinaryIsLocked(cli)) {
+            console.log(color('gray',
+                'Skipping daily update check -- another Claude session is using the binary.'));
+            return;
+        }
         console.log(color('cyan', 'Checking for Claude Code updates (daily) ...'));
-        const r = spawnSync(npm, ['install', '-g', '@anthropic-ai/claude-code@latest'],
-            { stdio: 'inherit', env, windowsHide: true });
+        const r = runNpmInstall(env);
         if (r.status === 0) {
             fs.writeFileSync(stamp, todayYmd());
         } else {
-            console.log(color('yellow', 'WARN: update check failed -- continuing with existing install.'));
+            console.log(color('yellow',
+                `WARN: update check failed (${npmFailureDetail(r)}) -- continuing with existing install.`));
         }
     }
 }
