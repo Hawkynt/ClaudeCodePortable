@@ -32,7 +32,9 @@ or `claude.sh` (Linux/macOS) — no admin rights required.
   history, npm cache, and npm-global.
 - **Session picker**: inside any project directory, the launcher shows
   previous sessions with relative timestamps, message counts, and the first
-  and last user prompt of each. Resume with a keypress.
+  and last user prompt of each. Resume with a keypress; pin, label, delete,
+  move or copy sessions across profiles, and toggle
+  `--dangerously-skip-permissions` per launch.
 - **Profile picker**: switch or manage profiles interactively from the
   session menu. Create / delete / rename profiles in place.
 - **Windows Explorer integration**: cascading *"Open Claude Code"* entry in
@@ -56,7 +58,7 @@ ClaudeCodePortable/
 │   ├── paths.mjs         ← tool versions, URLs, SHA256, path resolution
 │   ├── install.mjs       ← SHA256-verified downloads + extraction
 │   ├── profiles.mjs      ← profile CRUD + email lookup
-│   ├── sessions.mjs      ← .jsonl scanning + delete/move
+│   ├── sessions.mjs      ← .jsonl scanning + delete/move/copy
 │   ├── registry.mjs      ← Windows Explorer submenu via reg.exe
 │   ├── args.mjs          ← CLI flag parser
 │   ├── ui.mjs            ← ANSI colors, raw-mode input, prompts, relative time
@@ -141,8 +143,14 @@ Any flag not recognized by the launcher is forwarded to `claude` verbatim.
 | `R` then `<key>`                  | give a session a friendly label (stored under `cp-meta/`)                                |
 | `D` then `<key>`                  | delete a session (with `y/N` confirm)                                                    |
 | `M` then `<key>`                  | move a session to another profile                                                        |
+| `C` then `<key>`                  | copy a session to another profile (source kept)                                          |
+| `S`                               | toggle `--dangerously-skip-permissions` for the launch (on by default)                   |
 | `P`                               | open the profile picker                                                                  |
 | `Q`                               | quit the launcher without starting Claude                                                |
+
+Deleting or moving the last session in a folder no longer drops you straight
+into a fresh session — the picker stays open so you can switch profiles, quit,
+or start a new session deliberately.
 
 ## Profile picker
 
@@ -208,22 +216,25 @@ Pinned rows float to the top, labels show instead of UUIDs, arrow keys navigate,
        initial: initial prototype: read JSONL, display session list
        last:    color the newest session green
 
-[Enter/↑↓] pick   [Esc] NEW   [/] filter   [F <key>] pin   [R <key>] rename   [D <key>] delete   [M <key>] move   [P] profiles   [Q] quit
+[Enter/↑↓] pick   [Esc] NEW   [/] filter   [F <key>] pin   [R <key>] rename   [D <key>] delete   [M <key>] move   [C <key>] copy   [P] profiles   [Q] quit
+[S] skip permissions: [x]  (--dangerously-skip-permissions ON)
 ```
 
 ### Profile picker
 
 Independent logins, per-profile session counts, in-menu create / delete / rename housekeeping.
+When opened for a specific folder, counts show as `in this folder / total`.
 
 ```text
 ================================================================
  Select Claude profile
 ================================================================
  runtimes: node 22.16.0 | bash 5.2.37 | perl 5.38.2 | python 3.13.1
+  session count shown as: in this folder / total
 
- [1] default      |  me@example.com        |  last 2h ago          |    3 sessions
- [2] work         |  work@example.com      |  last 5d ago          |   12 sessions
- [3] experiments  |  (not logged in)       |  last (never used)    |    0 sessions
+ [1] default      |  me@example.com        |  last 2h ago          |    2/3 sessions
+ [2] work         |  work@example.com      |  last 5d ago          |   5/12 sessions
+ [3] experiments  |  (not logged in)       |  last (never used)    |    0/0 sessions
 
 [Enter] default       [Esc] abort   [Q] quit
 [N] new profile    [D <key>] delete    [R <key>] rename    [X] register Explorer menu
