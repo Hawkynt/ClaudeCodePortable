@@ -16,6 +16,7 @@ import {
     renameProfile, isValidProfileName,
 } from './profiles.mjs';
 import { isShellRegistered, installShell, uninstallShell } from './registry.mjs';
+import { countSessions } from './sessions.mjs';
 
 const RESERVED = new Set(['N','D','R','X','U','Q']);
 
@@ -32,6 +33,7 @@ export async function runProfileMenu({
     title = 'Select Claude profile',
     exclude = null,
     readOnly = false,
+    cwd = null,
 } = {}) {
     const keyPool = makeKeyPool();
 
@@ -65,6 +67,9 @@ export async function runProfileMenu({
         clearScreen();
         banner(title, 'magenta');
         console.log(color('darkmagenta', getVersionLine()));
+        if (cwd != null) {
+            console.log(color('darkmagenta', '  session count shown as: in this folder / total'));
+        }
         console.log('');
 
         const maxName  = Math.max(7,  ...profiles.map(p => p.name.length));
@@ -76,12 +81,15 @@ export async function runProfileMenu({
             const p = profiles[i];
             const key = keyPool[i];
             map[key] = p;
+            const here = cwd != null ? countSessions(p.name, cwd) : null;
+            const countStr = here != null ? `${here}/${p.sessionCount}` : String(p.sessionCount);
+            const word = here != null ? 'sessions' : ('session' + (p.sessionCount === 1 ? '' : 's'));
             const line =
                 ' [' + key + '] ' + padRight(p.name, maxName) +
                 '  |  ' + padRight(p.email, maxEmail) +
                 '  |  last ' + padRight(relativeTime(p.lastUsed), 13) +
-                '  |  ' + padLeft(String(p.sessionCount), 3) +
-                ' session' + (p.sessionCount === 1 ? '' : 's');
+                '  |  ' + padLeft(countStr, here != null ? 7 : 3) +
+                ' ' + word;
             const colorName = (i === 0) ? 'cyan' : 'yellow';
             console.log(color(colorName, line));
         }
@@ -93,8 +101,11 @@ export async function runProfileMenu({
         console.log(color('cyan', enterHint + '  [Esc] abort   [Q] quit'));
         if (!readOnly) {
             const registered = isShellRegistered();
-            const xLabel = registered ? '[X] refresh Explorer menu' : '[X] register Explorer menu';
-            const uLabel = registered ? '   [U] unregister Explorer menu' : '';
+            const menuName = process.platform === 'win32' ? 'Explorer menu'
+                           : process.platform === 'darwin' ? 'Finder menu'
+                           : 'file manager menu';
+            const xLabel = registered ? `[X] refresh ${menuName}` : `[X] register ${menuName}`;
+            const uLabel = registered ? `   [U] unregister ${menuName}` : '';
             console.log(color('darkmagenta',
                 '[N] new profile    [D <key>] delete    [R <key>] rename    ' + xLabel + uLabel));
         }

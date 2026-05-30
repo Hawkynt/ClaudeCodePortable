@@ -92,14 +92,21 @@ export function getProfileInfo(name) {
         const projects = path.join(dir, 'claude-config', 'projects');
         if (fs.existsSync(projects)) {
             const files = walkJsonl(projects);
-            info.sessionCount = files.length;
+            let count = 0;
             let newest = 0;
             for (const f of files) {
                 try {
                     const st = fs.statSync(f);
+                    // Skip zero-byte placeholders: Claude leaves an empty
+                    // .jsonl for the session it is about to start, which would
+                    // otherwise inflate the count by one. scanSessions() drops
+                    // these too, so the picker and this number stay in sync.
+                    if (st.size === 0) continue;
+                    count++;
                     if (st.mtimeMs > newest) newest = st.mtimeMs;
                 } catch { /* skip this file */ }
             }
+            info.sessionCount = count;
             info.lastUsed = newest > 0 ? new Date(newest) : null;
         }
     } catch { /* keep zero / null */ }

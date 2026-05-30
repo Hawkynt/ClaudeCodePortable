@@ -14,11 +14,11 @@ import {
 import { listProfileNames } from './profiles.mjs';
 import {
     scanSessions, deleteSession, moveSessionBetweenProfiles,
-    setSessionMeta, filterSessions,
+    copySessionBetweenProfiles, setSessionMeta, filterSessions,
 } from './sessions.mjs';
 import { runProfileMenu } from './profile-menu.mjs';
 
-const RESERVED = new Set(['N','D','M','P','Q','F','R']);
+const RESERVED = new Set(['N','D','M','C','P','Q','F','R','S']);
 
 function makeKeyPool() {
     const keys = ['1','2','3','4','5','6','7','8','9'];
@@ -46,10 +46,25 @@ export async function runSessionMenu({ profileName, cwd }) {
 
     let filter    = '';
     let highlight = 0;
+    let firstPass = true;
+    // Whether to launch Claude with --dangerously-skip-permissions. On by
+    // default to preserve the previous always-skip behaviour; toggled with [S].
+    let skipPermissions = true;
 
     while (true) {
         const all     = scanSessions(profileName, cwd);
-        if (all.length === 0) return { action: 'new' };
+        if (all.length === 0) {
+            // On first entry with no sessions there is nothing to pick, so go
+            // straight to a fresh session. But once the user has been working
+            // in the picker (e.g. deleted/moved the last session) keep them
+            // here instead of yanking them into a brand-new session.
+            if (firstPass) return { action: 'new', skipPermissions };
+            const res = await renderEmptyState({ profileName, cwd, skipPermissions });
+            if (res.action === 'toggleSkip') { skipPermissions = !skipPermissions; continue; }
+            if (res.action === 'redraw') continue;
+            return res;
+        }
+        firstPass = false;
         const visible = filterSessions(all, filter);
 
         // Filter matched nothing: render an explicit "no results" frame and
@@ -114,12 +129,15 @@ export async function runSessionMenu({ profileName, cwd }) {
         }
 
         const otherProfiles = listProfileNames().filter(p => p !== profileName);
-        const moveHint = otherProfiles.length >= 1 ? '  [M <key>] move' : '';
+        const moveHint = otherProfiles.length >= 1 ? '  [M <key>] move   [C <key>] copy' : '';
 
         console.log(color('green',
             '[Enter/\u2191\u2193] pick   [Esc] NEW   [/] filter   ' +
             '[F <key>] pin   [R <key>] rename   [D <key>] delete' +
             moveHint + '   [P] profiles   [Q] quit'));
+        console.log(color(skipPermissions ? 'brightyellow' : 'gray',
+            `[S] skip permissions: [${skipPermissions ? 'x' : ' '}]  ` +
+            '(--dangerously-skip-permissions ' + (skipPermissions ? 'ON' : 'OFF') + ')'));
         console.log('');
 
         process.stdout.write('Your choice: ');
@@ -130,17 +148,17 @@ export async function runSessionMenu({ profileName, cwd }) {
             // and the session menu is for "resume last", this still maps to
             // the newest (row 0 = most recently changed or the sole pinned).
             const chosen = visible[highlight];
-            if (!chosen) return { action: 'new' };
+            if (!chosen) return { action: 'new', skipPermissions };
             process.stdout.write(chosen.sessionId + '\n');
             // If highlight is on row 0 AND there is no filter, treat as
             // 'last' so users get the --continue shortcut they expect.
-            if (highlight === 0 && !filter) return { action: 'last' };
-            return { action: 'resume', sessionId: chosen.sessionId };
+            if (highlight === 0 && !filter) return { action: 'last', skipPermissions };
+            return { action: 'resume', sessionId: chosen.sessionId, skipPermissions };
         }
         if (k.isEscape) {
             if (filter) { filter = ''; highlight = 0; continue; }
             process.stdout.write('<new session>\n');
-            return { action: 'new' };
+            return { action: 'new', skipPermissions };
         }
         if (k.name === 'up')   { highlight = Math.max(0, highlight - 1); continue; }
         if (k.name === 'down') { highlight = Math.min(shown - 1, highlight + 1); continue; }
@@ -149,6 +167,11 @@ export async function runSessionMenu({ profileName, cwd }) {
         const ch  = raw.toUpperCase();
 
         if (ch === 'Q') { process.stdout.write('Q <quit>\n'); return { action: 'quit' }; }
+
+        if (ch === 'S') {
+            skipPermissions = !skipPermissions;
+            continue;
+        }
 
         if (raw === '/') {
             process.stdout.write('\n');
@@ -200,27 +223,21 @@ export async function runSessionMenu({ profileName, cwd }) {
             process.stdout.write('M (move)\n');
             const target = await pickSession(map, 'which session?');
             if (!target) continue;
-            const res = await runProfileMenu({
-                title: `Move to which profile? (source: ${profileName})`,
-                exclude: profileName,
-                readOnly: true,
-            });
-            if (res.action !== 'pick') { console.log(color('gray', '  move cancelled.')); await sleep(300); continue; }
-            if (await promptYesNo(`  move ${target.label || target.sessionId} -> ${res.profile}?`)) {
-                try {
-                    moveSessionBetweenProfiles(target, res.profile, cwd, profileName);
-                    console.log(color('darkgreen', '  moved.'));
-                } catch (e) {
-                    console.log(color('red', '  move failed: ' + e.message));
-                }
-                await sleep(400);
-            }
+            await transferSession({ target, profileName, cwd, copy: false });
+            continue;
+        }
+
+        if (ch === 'C' && otherProfiles.length >= 1) {
+            process.stdout.write('C (copy)\n');
+            const target = await pickSession(map, 'which session?');
+            if (!target) continue;
+            await transferSession({ target, profileName, cwd, copy: true });
             continue;
         }
 
         if (ch === 'P') {
             process.stdout.write('P (profiles)\n');
-            const res = await runProfileMenu({ title: 'Switch / manage Claude profiles' });
+            const res = await runProfileMenu({ title: 'Switch / manage Claude profiles', cwd });
             if (res.action === 'quit') return { action: 'quit' };
             if (res.action === 'pick' && res.profile !== profileName) {
                 return { action: 'switchProfile', profile: res.profile };
@@ -230,10 +247,73 @@ export async function runSessionMenu({ profileName, cwd }) {
 
         if (map[ch]) {
             process.stdout.write(ch + '\n');
-            return { action: 'resume', sessionId: map[ch].sessionId };
+            return { action: 'resume', sessionId: map[ch].sessionId, skipPermissions };
         }
         // unrecognised -> redraw with prompt
         process.stdout.write('\nYour choice: ');
+    }
+}
+
+// Shown when the picker is left with no sessions (e.g. the last one was just
+// deleted or moved). Keeps the user in control instead of silently launching
+// a new session. Returns an action the main loop understands:
+//   { action: 'new' | 'quit' | 'switchProfile', ... } | { action: 'redraw' }
+//   { action: 'toggleSkip' }
+async function renderEmptyState({ profileName, cwd, skipPermissions }) {
+    clearScreen();
+    banner(`Claude [${profileName}] - sessions in ${cwd}`, 'cyan');
+    console.log(color('darkcyan', getVersionLine()));
+    console.log('');
+    console.log(color('brightyellow', '  No sessions left in this folder.'));
+    console.log('');
+    console.log(color('green',
+        '[Enter/Esc] start NEW session   [P] profiles   [Q] quit'));
+    console.log(color(skipPermissions ? 'brightyellow' : 'gray',
+        `[S] skip permissions: [${skipPermissions ? 'x' : ' '}]  ` +
+        '(--dangerously-skip-permissions ' + (skipPermissions ? 'ON' : 'OFF') + ')'));
+    console.log('');
+
+    process.stdout.write('Your choice: ');
+    const k = await readKey();
+
+    if (k.isEnter || k.isEscape) {
+        process.stdout.write('<new session>\n');
+        return { action: 'new', skipPermissions };
+    }
+    const ch = (k.sequence || '').toUpperCase();
+    if (ch === 'Q') { process.stdout.write('Q <quit>\n'); return { action: 'quit' }; }
+    if (ch === 'S') return { action: 'toggleSkip' };
+    if (ch === 'P') {
+        process.stdout.write('P (profiles)\n');
+        const res = await runProfileMenu({ title: 'Switch / manage Claude profiles', cwd });
+        if (res.action === 'quit') return { action: 'quit' };
+        if (res.action === 'pick' && res.profile !== profileName) {
+            return { action: 'switchProfile', profile: res.profile };
+        }
+    }
+    return { action: 'redraw' };
+}
+
+// Move or copy a session into another profile, sharing the profile-pick and
+// confirmation flow. `copy` flips between rename (move) and copy semantics.
+async function transferSession({ target, profileName, cwd, copy }) {
+    const verb = copy ? 'copy' : 'move';
+    const res = await runProfileMenu({
+        title: `${copy ? 'Copy' : 'Move'} to which profile? (source: ${profileName})`,
+        exclude: profileName,
+        readOnly: true,
+        cwd,
+    });
+    if (res.action !== 'pick') { console.log(color('gray', `  ${verb} cancelled.`)); await sleep(300); return; }
+    if (await promptYesNo(`  ${verb} ${target.label || target.sessionId} -> ${res.profile}?`)) {
+        try {
+            if (copy) copySessionBetweenProfiles(target, res.profile, cwd, profileName);
+            else      moveSessionBetweenProfiles(target, res.profile, cwd, profileName);
+            console.log(color('darkgreen', copy ? '  copied.' : '  moved.'));
+        } catch (e) {
+            console.log(color('red', `  ${verb} failed: ` + e.message));
+        }
+        await sleep(400);
     }
 }
 

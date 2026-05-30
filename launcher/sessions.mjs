@@ -226,6 +226,28 @@ export function scanSessions(profileName, cwd) {
     return out;
 }
 
+/**
+ * Count sessions for a single cwd without parsing file contents. Mirrors
+ * scanSessions' filtering (non-empty .jsonl only) so the number matches the
+ * session picker, but stays cheap enough to call per-profile in a menu loop.
+ */
+export function countSessions(profileName, cwd) {
+    const projectsDir = path.join(profilePath(profileName), 'claude-config', 'projects');
+    const projectDir  = resolveProjectDir(projectsDir, cwd);
+    if (!projectDir) return 0;
+    let n = 0;
+    try {
+        for (const d of fs.readdirSync(projectDir, { withFileTypes: true })) {
+            try {
+                if (!d.isFile() || !d.name.endsWith('.jsonl')) continue;
+                if (fs.statSync(path.join(projectDir, d.name)).size === 0) continue;
+                n++;
+            } catch { /* skip this file */ }
+        }
+    } catch { return 0; }
+    return n;
+}
+
 // ---------------------------------------------------------------------------
 // Filtering (search bar)
 // ---------------------------------------------------------------------------
@@ -282,6 +304,39 @@ export function moveSessionBetweenProfiles(session, targetProfileName, cwd, from
             const dstSidecar = sidecarPath(targetProfileName, cwd, session.sessionId);
             fs.mkdirSync(path.dirname(dstSidecar), { recursive: true });
             try { fs.renameSync(srcSidecar, dstSidecar); } catch {}
+        }
+    }
+    return destJsonl;
+}
+
+/**
+ * Copy a session's .jsonl, its sibling UUID dir, AND its sidecar (if any)
+ * into the target profile, leaving the source untouched. Refuses to clobber
+ * an existing session of the same id in the target.
+ */
+export function copySessionBetweenProfiles(session, targetProfileName, cwd, fromProfileName = null) {
+    const targetProjects   = path.join(profilePath(targetProfileName), 'claude-config', 'projects');
+    const targetProjectDir = path.join(targetProjects, encodeCwd(cwd));
+    fs.mkdirSync(targetProjectDir, { recursive: true });
+
+    const destJsonl = path.join(targetProjectDir, session.sessionId + '.jsonl');
+    if (fs.existsSync(destJsonl)) {
+        throw new Error(`session already exists in '${targetProfileName}'`);
+    }
+    fs.copyFileSync(session.fullPath, destJsonl);
+
+    const srcSibling = path.join(path.dirname(session.fullPath), session.sessionId);
+    if (fs.existsSync(srcSibling)) {
+        try { fs.cpSync(srcSibling, path.join(targetProjectDir, session.sessionId), { recursive: true }); } catch {}
+    }
+
+    // Copy sidecar if present.
+    if (fromProfileName) {
+        const srcSidecar = sidecarPath(fromProfileName, cwd, session.sessionId);
+        if (fs.existsSync(srcSidecar)) {
+            const dstSidecar = sidecarPath(targetProfileName, cwd, session.sessionId);
+            fs.mkdirSync(path.dirname(dstSidecar), { recursive: true });
+            try { fs.copyFileSync(srcSidecar, dstSidecar); } catch {}
         }
     }
     return destJsonl;

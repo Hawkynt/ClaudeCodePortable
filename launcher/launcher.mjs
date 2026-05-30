@@ -95,7 +95,7 @@ import {
     setVersionLine();
 
     // Profile loop: re-enterable after a profile switch from the session menu
-    let profileName = resolveProfile(args);
+    let profileName = await resolveProfile(args);
     if (!profileName) process.exit(0); // user aborted profile picker
 
     while (true) {
@@ -114,6 +114,9 @@ import {
         printVersionBanner(profileName);
 
         let sessionArgs = [];
+        // Default matches the historical behaviour (always skip permissions);
+        // the session picker lets the user toggle this per launch.
+        let skipPermissions = true;
         if (!args.skipMenu) {
             const res = await runSessionMenu({ profileName, cwd: process.cwd() });
             if (res.action === 'quit') process.exit(0);
@@ -121,6 +124,7 @@ import {
                 profileName = res.profile;
                 continue;
             }
+            if (typeof res.skipPermissions === 'boolean') skipPermissions = res.skipPermissions;
             if (res.action === 'last') sessionArgs = ['--continue'];
             else if (res.action === 'resume') sessionArgs = ['--resume', res.sessionId];
             else if (res.action === 'new') sessionArgs = [];
@@ -138,7 +142,10 @@ import {
         if (sessionArgs.length) console.log('Session:          ' + sessionArgs.join(' '));
         console.log('');
 
-        const userArgs = ['--dangerously-skip-permissions', ...sessionArgs, ...args.forwarded];
+        const userArgs = [
+            ...(skipPermissions ? ['--dangerously-skip-permissions'] : []),
+            ...sessionArgs, ...args.forwarded,
+        ];
         let cmd, cmdArgs;
         if (cli.kind === 'native') {
             cmd = cli.path;
@@ -264,7 +271,7 @@ function resolveProfileForDoctor(args) {
     return names[0] || 'default';
 }
 
-function resolveProfile(args) {
+async function resolveProfile(args) {
     if (args.profile) return args.profile;
 
     const names = listProfileNames();
@@ -277,17 +284,10 @@ function resolveProfile(args) {
     if (args.skipMenu) return names.includes('default') ? 'default' : names[0];
 
     // Picker
-    return runProfileMenuSync();
-}
-
-function runProfileMenuSync() {
-    // runProfileMenu is async. Use dynamic import to avoid top-level await.
-    const { runProfileMenu } = require('./profile-menu.mjs'); // eslint-disable-line
-    return runProfileMenu().then(r => {
-        if (r.action === 'pick')  return r.profile;
-        if (r.action === 'quit' || r.action === 'abort') return null;
-        return null;
-    });
+    const { runProfileMenu } = await import('./profile-menu.mjs');
+    const r = await runProfileMenu({ cwd: process.cwd() });
+    if (r.action === 'pick') return r.profile;
+    return null;
 }
 
 function setupPath() {

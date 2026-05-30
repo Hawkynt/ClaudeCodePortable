@@ -128,20 +128,20 @@ export function checkActiveProfile(profileName) {
 
 export function checkShellRegistration() {
     try {
-        if (!IS_WIN)               return skip('shell-menu', 'Windows-only feature');
-        if (!isShellRegistered())  return skip('shell-menu', 'not registered (run --register-shell to install)');
-        // Query the registry to see whether the command path still matches
-        // this launcher's location.
-        const q = spawnSync('reg.exe', [
-            'query', 'HKCU\\Software\\Classes\\ClaudeCodeCmds\\shell', '/s',
-        ], { encoding: 'utf8', windowsHide: true });
-        const expected = LAUNCHER_BAT.toLowerCase();
-        const body = (q.stdout || '').toLowerCase();
-        if (!body.includes(expected)) {
-            return fail('shell-menu',
-                `registry points at a different launcher path. Run Claude.bat --register-shell to refresh.`);
+        if (!isShellRegistered()) return skip('shell-menu', 'not registered (press [X] in the profile menu to install)');
+        if (IS_WIN) {
+            const q = spawnSync('reg.exe', [
+                'query', 'HKCU\\Software\\Classes\\ClaudeCodeCmds\\shell', '/s',
+            ], { encoding: 'utf8', windowsHide: true });
+            const expected = LAUNCHER_BAT.toLowerCase();
+            const body = (q.stdout || '').toLowerCase();
+            if (!body.includes(expected)) {
+                return fail('shell-menu',
+                    'registry points at a different launcher path. Press [X] in the profile menu to refresh.');
+            }
+            return ok('shell-menu', 'Explorer menu registered, launcher path matches');
         }
-        return ok('shell-menu', 'registered, launcher path matches');
+        return ok('shell-menu', 'file manager menu registered');
     } catch (e) { return fail('shell-menu', e.message); }
 }
 
