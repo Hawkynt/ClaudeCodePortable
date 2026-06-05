@@ -291,13 +291,14 @@ Ubuntu, Windows, and macOS (`.github/workflows/ci.yml`).
 
 ### Nightly builds (automatic)
 
-Every push to `main` triggers `.github/workflows/nightly.yml`, which:
+Every successful CI run on `master` triggers `.github/workflows/nightly.yml`,
+which:
 
-1. Runs the full test suite.
-2. Builds `ClaudeCodePortable-nightly-YYYY-MM-DD.zip`.
-3. Publishes it as a GitHub pre-release with tag `nightly-YYYY-MM-DD`.
+1. Builds `ClaudeCodePortable-<version>.zip` from the exact SHA CI validated
+   (shared packaging block `.github/workflows/_build.yml`).
+2. Publishes it as a GitHub pre-release with tag `nightly-YYYYMMDD`.
    Pushing again on the same day overwrites the existing nightly.
-4. Prunes old nightlies with a promotion-based Grandfather-Father-Son
+3. Prunes old nightlies with a promotion-based Grandfather-Father-Son
    rotation. Gaps in activity never waste a slot:
    - **Son**: the 7 newest nightlies, whatever their dates are.
    - **Father**: from older releases, one per distinct ISO-week, up to 4
@@ -310,23 +311,25 @@ You can grab the latest nightly from the repo's
 [releases page](https://github.com/Hawkynt/ClaudeCodePortable/releases)
 without ever cutting a tag.
 
-### Cutting a versioned release (optional)
+### Cutting a stable release (manual dispatch)
 
 1. Bump `VERSION` if you want a new major/minor/patch base.
-2. Tag the release: `git tag v1.0.0 && git push --tags`.
-3. `.github/workflows/release.yml` builds `ClaudeCodePortable-<version>.zip`
-   and attaches it to an auto-generated GitHub release.
+2. Dispatch `.github/workflows/release.yml` (Actions → Release → Run
+   workflow). It re-runs the full CI matrix, builds
+   `ClaudeCodePortable-<version>.zip`, refreshes `CHANGELOG.md`, and cuts a
+   GitHub release tagged with the date marker `vYYYYMMDD`.
 
 ### Version format
 
-`scripts/version.pl` prints `MAJOR.MINOR.PATCH.BUILD`. The first three
-come from the `VERSION` file; `BUILD` is `git rev-list --count HEAD`.
-Call it with `--base` or `--build` to get just one segment.
+`.github/workflows/scripts/version.pl` prints `MAJOR.MINOR.PATCH.BUILD`. The
+first three come from the `VERSION` file; `BUILD` is
+`git rev-list --count HEAD`. Call it with `--base` or `--build` to get just
+one segment.
 
 ### Local dry-run of the nightly pruner
 
 ```bash
-node scripts/prune-nightlies.mjs --dry-run
+node .github/workflows/scripts/prune-nightlies.mjs --dry-run
 ```
 
 (Requires `gh` CLI and a GitHub auth token.) Prints the keep/drop plan

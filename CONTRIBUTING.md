@@ -26,10 +26,9 @@ node --test
 
 ```
 launcher/        ES-module launcher (entry: launcher.mjs)
-scripts/        build-time helpers (version.pl, prune-nightlies, update-changelog)
 tests/          node --test unit tests
 assets/         icon + logo
-.github/        CI, release, nightly workflows
+.github/        CI/CD pipeline: workflows + helper scripts (version.pl, prune-nightlies, update-changelog)
 app/            portable runtimes, auto-downloaded (git-ignored)
 profiles/      per-profile data, auto-created  (git-ignored)
 ```
@@ -72,13 +71,15 @@ good thing to cover — the whole launcher is built to tolerate them.
 
 ## Release process
 
-- **Nightly** builds are automatic on every push to `main`
-  (`.github/workflows/nightly.yml`). They run the test suite, update
-  `CHANGELOG.md`, publish the zip as a GitHub pre-release tagged
-  `nightly-YYYY-MM-DD`, and apply a Grandfather-Father-Son pruning pass
-  (7 dailies / 4 weekly / 3 monthly).
-- **Tagged releases** run the same flow plus `action-gh-release` when you
-  push a tag matching `v*` (`.github/workflows/release.yml`).
+- **Nightly** builds are automatic after every successful CI run on
+  `master` (`.github/workflows/nightly.yml`). They package the CI-validated
+  SHA via the shared `_build.yml` block, publish the zip as a GitHub
+  pre-release tagged `nightly-YYYYMMDD`, and apply a Grandfather-Father-Son
+  pruning pass (7 dailies / 4 weekly / 3 monthly).
+- **Stable releases** are cut by manually dispatching
+  `.github/workflows/release.yml`. It re-runs the full CI matrix, builds
+  the same artifact, refreshes `CHANGELOG.md`, and tags the dated release
+  marker `vYYYYMMDD`.
 
 ## Commit messages
 
@@ -104,10 +105,10 @@ Examples:
 ! document registry schema in README
 ```
 
-Sections in `CHANGELOG.md` render in the order **Added → Changed → Fixed
-→ Removed → TODO**, followed by an "Other" catch-all for commits without
-a recognised prefix. Rendering skips empty buckets so you only see what
-actually changed.
+Sections in `CHANGELOG.md` render in the order **Added → Removed → Changed
+→ Fixed → TODO** (matching the prefix convention `+ - * # !`), followed by
+an "Other" catch-all for commits without a recognised prefix. Rendering
+skips empty buckets so you only see what actually changed.
 
 A space after the prefix is optional (`+ foo` and `+foo` both work).
 Subjects that start with anything else still get a bullet — they just
