@@ -1,12 +1,12 @@
 // Maintains CHANGELOG.md. Invoked from the nightly and release workflows.
 //
 // Usage:
-//   node scripts/update-changelog.mjs --nightly           # prepends "## Nightly YYYY-MM-DD (<version>)"
-//   node scripts/update-changelog.mjs --release v1.2.3    # prepends "## v1.2.3 (YYYY-MM-DD)"
+//   node .github/workflows/scripts/update-changelog.mjs --nightly          # "## Nightly YYYY-MM-DD (<version>)"
+//   node .github/workflows/scripts/update-changelog.mjs --release v1.2.3   # "## v1.2.3 (YYYY-MM-DD)"
 //
-// Commit messages are bucketed Conventional-Commits-style (feat:/fix:/docs:/
-// chore: and a catch-all "Other"). Falls back to a flat list if no prefixes
-// are present.
+// Commit subject conventions (see bucketize() below):
+//   + Added  * Changed  # Fixed  - Removed  ! TODO
+// Anything else goes into "Other".
 
 import fs   from 'node:fs';
 import path from 'node:path';
@@ -14,7 +14,8 @@ import url  from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, '..');
+// Script lives at <repo>/.github/workflows/scripts/ -- repo root is three up.
+const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
 const CHANGELOG = path.join(REPO_ROOT, 'CHANGELOG.md');
 
 // ---------------------------------------------------------------------------
@@ -31,7 +32,8 @@ const CHANGELOG = path.join(REPO_ROOT, 'CHANGELOG.md');
 // Bucket order in the rendered section is fixed: additions first, then
 // changes, then bug-fixes, then removals, then open TODOs, then the
 // catch-all.
-export const BUCKET_ORDER = ['Added', 'Changed', 'Fixed', 'Removed', 'TODO', 'Other'];
+// Order matches the commit-prefix convention +  -  *  #  !
+export const BUCKET_ORDER = ['Added', 'Removed', 'Changed', 'Fixed', 'TODO', 'Other'];
 const PREFIX_TO_BUCKET = {
     '+': 'Added',
     '*': 'Changed',
@@ -87,8 +89,10 @@ export function prependSection(existing, section) {
 // ---------------------------------------------------------------------------
 // Git helpers (used when invoked as a script)
 // ---------------------------------------------------------------------------
-function gitLastTag() {
-    const r = spawnSync('git', ['describe', '--tags', '--abbrev=0'], { encoding: 'utf8' });
+function gitLastTag(matchPattern) {
+    const args = ['describe', '--tags', '--abbrev=0'];
+    if (matchPattern) args.push(`--match=${matchPattern}`);
+    const r = spawnSync('git', args, { encoding: 'utf8' });
     if (r.status !== 0) return null;
     return (r.stdout || '').trim() || null;
 }
@@ -116,41 +120,55 @@ function main() {
     let mode = null;            // 'nightly' | 'release'
     let tag  = null;
     let version = null;
+    let notesPath = null;       // --notes <file>: write the release-notes body here
 
     for (let i = 0; i < argv.length; i++) {
         const a = argv[i];
         if (a === '--nightly') { mode = 'nightly'; }
         else if (a === '--release') { mode = 'release'; tag = argv[++i]; }
         else if (a === '--version') { version = argv[++i]; }
+        else if (a === '--notes') { notesPath = argv[++i]; }
     }
     if (!mode) {
-        console.error('usage: update-changelog.mjs --nightly | --release <tag> [--version X.Y.Z.B]');
+        console.error('usage: update-changelog.mjs --nightly | --release <tag> [--version X.Y.Z.B] [--notes <file>]');
         process.exit(2);
     }
 
-    const since = gitLastTag();
+    // Releases measure from the last STABLE tag (v1.2.3 / vyyyyMMdd) so a
+    // same-day nightly-* tag never swallows the release's commit range.
+    // Nightlies keep the nearest tag of any kind: their notes are the delta
+    // since the previous nightly (or stable, whichever is closer).
+    const since   = gitLastTag(mode === 'release' ? 'v[0-9]*' : null);
     const commits = gitCommits(since);
+
+    const header = mode === 'nightly'
+        ? `Nightly ${isoToday()}${version ? ` (${version})` : ''}`
+        : `${tag} (${isoToday()})`;
+
+    // The functional changes only: commit subjects bucketed by + - * # ! prefix.
+    const section = renderSection(header, bucketize(commits));
+
+    // Release-notes body = the buckets without the leading "## <header>" line
+    // (the GitHub release title already carries it). Written even when empty so
+    // the workflow's body_path always resolves.
+    if (notesPath) {
+        const body = section.replace(/^##[^\n]*\n\n?/, '');
+        fs.writeFileSync(notesPath, body.trimEnd() + '\n');
+        console.log(`Wrote release notes to ${notesPath}.`);
+    }
+
     if (commits.length === 0) {
         console.log('No new commits since last tag -- CHANGELOG unchanged.');
         return;
     }
 
-    let header;
-    if (mode === 'nightly') {
-        const suffix = version ? ` (${version})` : '';
-        header = `Nightly ${isoToday()}${suffix}`;
-    } else {
-        header = `${tag} (${isoToday()})`;
-    }
-
-    const section = renderSection(header, bucketize(commits));
     const existing = fs.existsSync(CHANGELOG) ? fs.readFileSync(CHANGELOG, 'utf8') : '';
-    const next = prependSection(existing, section);
-    fs.writeFileSync(CHANGELOG, next);
+    fs.writeFileSync(CHANGELOG, prependSection(existing, section));
     console.log(`CHANGELOG updated with ${commits.length} commit(s) under "${header}".`);
 }
 
-const invokedPath = process.argv[1] ? process.argv[1].replace(/\\/g, '/') : '';
-if (import.meta.url === `file://${invokedPath}` || import.meta.url.endsWith(invokedPath)) {
+// pathToFileURL handles Windows separators AND percent-encodes blanks, so the
+// comparison also holds for working copies living in paths with spaces.
+if (process.argv[1] && import.meta.url === url.pathToFileURL(process.argv[1]).href) {
     main();
 }

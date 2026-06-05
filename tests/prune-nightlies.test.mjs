@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseNightlies, planRetention, isoWeekKey } from '../scripts/prune-nightlies.mjs';
+import { parseNightlies, planRetention, isoWeekKey } from '../.github/workflows/scripts/prune-nightlies.mjs';
 
-function make(iso) { return { tagName: `nightly-${iso}` }; }
+// Standard tag shape is nightly-yyyyMMdd (no dashes).
+function make(iso) { return { tagName: `nightly-${iso.replace(/-/g, '')}` }; }
 function parse(isos) { return parseNightlies(isos.map(make)); }
 function keptIsos(plan) { return plan.keep.map(r => r.iso); }
 
@@ -13,6 +14,7 @@ test('parseNightlies sorts newest first and ignores non-nightly tags', () => {
         make('2026-04-12'),
         make('2026-04-11'),
         { tagName: 'rc-2026-04-15' },                       // ignored
+        { tagName: 'nightly-2026-04-13' },                  // legacy dashed format: ignored
     ];
     const n = parseNightlies(raw);
     assert.deepEqual(n.map(r => r.iso), ['2026-04-12','2026-04-11','2026-04-10']);

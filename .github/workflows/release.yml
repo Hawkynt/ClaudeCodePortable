@@ -1,84 +1,73 @@
 name: Release
 
-# Tag pushes don't trigger CI (CI is branch-scoped), so the release
-# pipeline gates itself: the `build` job only runs if the `test` job
-# passes, and `publish` only runs if `build` produced an artifact.
+# Stable release — MANUAL dispatch only. The explicit "package + publish" action:
+# runs CI, builds the portable zip via _build.yml, refreshes CHANGELOG.md, then
+# cuts a dated GitHub Release.
+#
+# Versions are never taken from a git tag. The zip carries the file-driven
+# version (VERSION file + commit count via version.pl); the repo-level marker
+# is the date: the Release/tag is `vyyyyMMdd`. Nightlies happen automatically
+# (nightly.yml).
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
     inputs:
       reason:
-        description: 'Manual release trigger'
+        description: 'Why are you cutting this release? (optional, for the audit log)'
         required: false
 
 permissions:
   contents: write
 
+# Force JavaScript-based actions to run on Node 24 instead of the deprecated Node 20 ahead of
+# the 2026-06-16 hard cutover, until we bump each action to a Node-24-native major version.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
-  # Re-runs the full CI matrix (ubuntu / windows / macOS, Node 22, unit
-  # tests + bootstrap smoke test). Tag pushes don't trigger ci.yml on
-  # their own -- calling it here keeps release gated on the same signal
-  # without duplicating the steps.
-  test:
+  # Re-runs the full CI matrix (ubuntu / windows / macOS, unit tests +
+  # bootstrap smoke test) so the release gates on the exact same signal as
+  # every PR, without duplicating the steps.
+  ci:
     uses: ./.github/workflows/ci.yml
 
   build:
-    needs: test
+    needs: ci
+    uses: ./.github/workflows/_build.yml
+
+  release:
+    needs: build
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0                          # version.pl needs full history
+          fetch-depth: 0
+      - name: Compute release marker
+        run: echo "REL=v$(date -u +%Y%m%d)" >> "$GITHUB_ENV"
 
-      - name: Compute version
-        id: version
-        run: |
-          V=$(perl scripts/version.pl)
-          echo "version=$V" >> "$GITHUB_OUTPUT"
-          echo "Resolved version: $V"
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-artifacts
+          path: dist
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-
-      - name: Update CHANGELOG
-        run: node scripts/update-changelog.mjs --release "${GITHUB_REF_NAME}"
-
-      - name: Build release zip
+      - name: Update changelog + generate release notes (bucketed by + - * # !)
+        run: node .github/workflows/scripts/update-changelog.mjs --release "$REL" --notes RELEASE_NOTES.md
+      - name: Commit changelog (if it changed)
         run: |
-          V="${{ steps.version.outputs.version }}"
-          STAGE="ClaudeCodePortable-${V}"
-          rm -rf "$STAGE" dist
-          mkdir -p dist "$STAGE"
-          cp -r launcher scripts Claude.bat claude.sh README.md LICENSE CHANGELOG.md .gitignore VERSION "$STAGE/"
-          [ -d assets ] && cp -r assets "$STAGE/" || true
-          chmod +x "$STAGE/claude.sh"
-          (cd "$(dirname "$STAGE")" && zip -r "dist/${STAGE}.zip" "$STAGE")
-          ls -la dist
+          if ! git diff --quiet -- CHANGELOG.md; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add CHANGELOG.md
+            git commit -m "* update changelog for $REL [skip ci]"
+            git push
+          fi
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ClaudeCodePortable
-          path: dist/*.zip
-
-  publish:
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: ClaudeCodePortable
-          path: dist
-
-      - name: Create GitHub Release
+      - name: Create GitHub Release (dated marker; tags vyyyyMMdd)
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.zip
-          generate_release_notes: true
+          tag_name: ${{ env.REL }}
+          name: ${{ env.REL }}
+          files: dist/*
+          body_path: RELEASE_NOTES.md            # commit-message changelog, not GitHub's PR notes

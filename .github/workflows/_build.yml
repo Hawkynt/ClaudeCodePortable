@@ -1,0 +1,57 @@
+name: Build artifacts
+
+# Shared packaging block. Called by release.yml (manual dispatch) and
+# nightly.yml (auto, on CI success). Single place that turns a commit into
+# the shippable portable zip so release and nightly never diverge.
+#
+# Versioning: FILES drive versions, never git tags. version.pl composes
+# MAJOR.MINOR.PATCH from the root VERSION file + the git commit count.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref/SHA to build (defaults to caller ref)
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# Force JavaScript-based actions to run on Node 24 instead of the deprecated Node 20 ahead of
+# the 2026-06-16 hard cutover, until we bump each action to a Node-24-native major version.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0                          # version.pl counts commits
+
+      - name: Compute version
+        id: version
+        run: |
+          V=$(perl .github/workflows/scripts/version.pl)
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $V"
+
+      - name: Build portable zip
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          STAGE="ClaudeCodePortable-${V}"
+          rm -rf "$STAGE" dist
+          mkdir -p dist "$STAGE"
+          cp -r launcher Claude.bat claude.sh README.md LICENSE CHANGELOG.md .gitignore VERSION "$STAGE/"
+          [ -d assets ] && cp -r assets "$STAGE/" || true
+          chmod +x "$STAGE/claude.sh"
+          zip -r "dist/${STAGE}.zip" "$STAGE"
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-artifacts
+          path: dist/*
