@@ -4,11 +4,11 @@
   <img src="./assets/claude.png" alt="ClaudeCodePortable" width="180">
 </p>
 
-[![License](https://img.shields.io/github/license/Hawkynt/ClaudeCodePortable)](https://github.com/Hawkynt/ClaudeCodePortable/blob/master/LICENSE)
+[![License](https://img.shields.io/github/license/Hawkynt/ClaudeCodePortable)](https://github.com/Hawkynt/ClaudeCodePortable/blob/main/LICENSE)
 [![Language](https://img.shields.io/github/languages/top/Hawkynt/ClaudeCodePortable?color=8957D5)](https://github.com/Hawkynt/ClaudeCodePortable)
 
-[![CI](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/ci.yml)
-![Last Commit](https://img.shields.io/github/last-commit/Hawkynt/ClaudeCodePortable?branch=master)
+[![CI](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/ci.yml)
+![Last Commit](https://img.shields.io/github/last-commit/Hawkynt/ClaudeCodePortable?branch=main)
 ![Activity](https://img.shields.io/github/commit-activity/m/Hawkynt/ClaudeCodePortable)
 
 [![Stars](https://img.shields.io/github/stars/Hawkynt/ClaudeCodePortable?color=FFD700)](https://github.com/Hawkynt/ClaudeCodePortable/stargazers)
@@ -17,13 +17,9 @@
 ![Code Size](https://img.shields.io/github/languages/code-size/Hawkynt/ClaudeCodePortable?color=4CAF50)
 ![Repo Size](https://img.shields.io/github/repo-size/Hawkynt/ClaudeCodePortable?color=FF9800)
 
-> A self-contained, portable distribution of [Claude Code](https://docs.anthropic.com/claude/code)
-with multi-profile support, a keyboard-driven session picker, cross-platform
-bootstrap scripts, and Windows Explorer integration. Drop the folder on any
-USB stick, cloud share, or working directory and run `Claude.bat` (Windows)
-or `claude.sh` (Linux/macOS) — no admin rights required.
+> A self-contained, portable distribution of [Claude Code](https://docs.anthropic.com/claude/code) with multi-profile support, a keyboard-driven session picker, cross-platform bootstrap scripts, and Windows Explorer integration — drop the folder on any USB stick, cloud share, or working directory and run `Claude.bat` (Windows) or `claude.sh` (Linux/macOS), no admin rights required.
 
-## Features
+## ✨ Features
 
 - **Portable runtimes**: Node.js (+ npm/npx), Git, Bash, Perl (+ cpan), Python (+ pip), and
   PowerShell 7 are downloaded on first run into `app/`, each with SHA256
@@ -84,7 +80,7 @@ Only `launcher/`, `Claude.bat`, `claude.sh`, this README, and the
 license/gitignore are checked in. `app/` and `profiles/` are populated at
 runtime and must never be committed.
 
-## Getting started
+## 📦 Getting started
 
 ### Windows
 
@@ -192,7 +188,7 @@ The launcher exports:
 
 No data is sent anywhere by the launcher itself.
 
-## Screenshots
+## 🖼️ Screenshots
 
 ### Session picker
 
@@ -335,6 +331,13 @@ node .github/workflows/scripts/prune-nightlies.mjs --dry-run
 (Requires `gh` CLI and a GitHub auth token.) Prints the keep/drop plan
 without touching any releases.
 
-## License
+## ❤️ Support
 
-LGPL 2.1. See [LICENSE](./LICENSE).
+If this project saves you time or money, consider supporting its development:
+
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors)](https://github.com/sponsors/Hawkynt)
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?logo=paypal)](https://www.paypal.me/hawkynt)
+
+## 📜 License
+
+Licensed under LGPL-3.0-or-later — see [LICENSE](LICENSE).
