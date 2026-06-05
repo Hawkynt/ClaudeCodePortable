@@ -105,7 +105,10 @@ test('grandfather tier keeps up to 3 distinct calendar months from leftovers', (
 });
 
 test('grandfather tier traverses month gaps: quiet months do not waste slots', () => {
-    // Son: 0. Father: 0. Grandfather: 3 months, but there are gaps.
+    // Son: pinned to >=1 -- the NEWEST nightly is always kept (the next
+    // nightly's changelog delta is measured from its tag, so pruning it would
+    // re-report already-published changes). Grandfather: 3 months with gaps,
+    // skipping the month son already claimed.
     const n = parse([
         '2026-04-10',
         // March skipped
@@ -116,8 +119,8 @@ test('grandfather tier traverses month gaps: quiet months do not waste slots', (
         '2025-06-20',
     ]);
     const { keep } = planRetention(n, { daily: 0, weekly: 0, monthly: 3 });
-    assert.equal(keep.length, 3);
-    assert.deepEqual(keptIsos({ keep }), ['2026-04-10', '2026-02-15', '2025-10-05']);
+    assert.equal(keep.length, 4);
+    assert.deepEqual(keptIsos({ keep }), ['2026-04-10', '2026-02-15', '2025-10-05', '2025-06-20']);
 });
 
 test('full GFS: disjoint tiers, no double-counting, exact upper bound', () => {
