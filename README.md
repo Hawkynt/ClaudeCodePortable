@@ -17,6 +17,10 @@
 ![Code Size](https://img.shields.io/github/languages/code-size/Hawkynt/ClaudeCodePortable?color=4CAF50)
 ![Repo Size](https://img.shields.io/github/repo-size/Hawkynt/ClaudeCodePortable?color=FF9800)
 
+[![Release](https://img.shields.io/github/v/release/Hawkynt/ClaudeCodePortable)](https://github.com/Hawkynt/ClaudeCodePortable/releases/latest)
+[![Nightly](https://img.shields.io/github/v/release/Hawkynt/ClaudeCodePortable?include_prereleases&sort=date&filter=nightly-*&label=nightly&color=FF9800)](https://github.com/Hawkynt/ClaudeCodePortable/releases)
+[![Downloads](https://img.shields.io/github/downloads/Hawkynt/ClaudeCodePortable/total)](https://github.com/Hawkynt/ClaudeCodePortable/releases)
+
 > A self-contained, portable distribution of [Claude Code](https://docs.anthropic.com/claude/code) with multi-profile support, a keyboard-driven session picker, cross-platform bootstrap scripts, and Windows Explorer integration — drop the folder on any USB stick, cloud share, or working directory and run `Claude.bat` (Windows) or `claude.sh` (Linux/macOS), no admin rights required.
 
 ## ✨ Features
