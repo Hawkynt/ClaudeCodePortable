@@ -7,7 +7,7 @@
 //
 // Everything else is deleted (release + tag) via the `gh` CLI.
 //
-// Dry-run locally with `node scripts/prune-nightlies.mjs --dry-run`.
+// Dry-run locally with `node .github/workflows/scripts/prune-nightlies.mjs --dry-run`.
 
 import { spawnSync } from 'node:child_process';
 

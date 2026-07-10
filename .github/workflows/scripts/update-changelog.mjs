@@ -1,12 +1,12 @@
 // Maintains CHANGELOG.md. Invoked from the nightly and release workflows.
 //
 // Usage:
-//   node scripts/update-changelog.mjs --nightly           # prepends "## Nightly YYYY-MM-DD (<version>)"
-//   node scripts/update-changelog.mjs --release v1.2.3    # prepends "## v1.2.3 (YYYY-MM-DD)"
+//   node .github/workflows/scripts/update-changelog.mjs --nightly          # "## Nightly YYYY-MM-DD (<version>)"
+//   node .github/workflows/scripts/update-changelog.mjs --release v1.2.3   # "## v1.2.3 (YYYY-MM-DD)"
 //
-// Commit messages are bucketed Conventional-Commits-style (feat:/fix:/docs:/
-// chore: and a catch-all "Other"). Falls back to a flat list if no prefixes
-// are present.
+// Commit subject conventions (see bucketize() below):
+//   + Added  * Changed  # Fixed  - Removed  ! TODO
+// Anything else goes into "Other".
 
 import fs   from 'node:fs';
 import path from 'node:path';
@@ -14,7 +14,8 @@ import url  from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, '..');
+// Script lives at <repo>/.github/workflows/scripts/ -- repo root is three up.
+const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
 const CHANGELOG = path.join(REPO_ROOT, 'CHANGELOG.md');
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseNightlies, planRetention, isoWeekKey } from '../scripts/prune-nightlies.mjs';
+import { parseNightlies, planRetention, isoWeekKey } from '../.github/workflows/scripts/prune-nightlies.mjs';
 
 function make(iso) { return { tagName: `nightly-${iso}` }; }
 function parse(isos) { return parseNightlies(isos.map(make)); }

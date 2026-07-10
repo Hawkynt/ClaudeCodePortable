@@ -6,14 +6,14 @@
 
 [![License](https://img.shields.io/github/license/Hawkynt/ClaudeCodePortable)](./LICENSE)
 ![Language](https://img.shields.io/github/languages/top/Hawkynt/ClaudeCodePortable?color=purple)
-[![CI](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/ci.yml/badge.svg)](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/ci.yml)
-[![Nightly](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/nightly.yml/badge.svg)](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/nightly.yml)
+[![CI](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/ci.yml)
 [![Release](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/release.yml/badge.svg)](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/release.yml)
+[![Latest release](https://img.shields.io/github/v/release/Hawkynt/ClaudeCodePortable?label=release&sort=semver)](https://github.com/Hawkynt/ClaudeCodePortable/releases/latest)
+[![Latest nightly](https://img.shields.io/github/v/release/Hawkynt/ClaudeCodePortable?include_prereleases&label=nightly&sort=date)](https://github.com/Hawkynt/ClaudeCodePortable/releases?q=prerelease%3Atrue)
 [![Last Commit](https://img.shields.io/github/last-commit/Hawkynt/ClaudeCodePortable?branch=master) ![Activity](https://img.shields.io/github/commit-activity/y/Hawkynt/ClaudeCodePortable?branch=master)](https://github.com/Hawkynt/ClaudeCodePortable/commits/master)
 ![LineCount](https://tokei.rs/b1/github/Hawkynt/ClaudeCodePortable?color=magenta)
 ![Size](https://img.shields.io/github/languages/code-size/Hawkynt/ClaudeCodePortable?color=green) / ![Repo-Size](https://img.shields.io/github/repo-size/Hawkynt/ClaudeCodePortable?color=red)
 [![Stars](https://img.shields.io/github/stars/Hawkynt/ClaudeCodePortable?color=yellow)](https://github.com/Hawkynt/ClaudeCodePortable/stargazers)
-[![GitHub release](https://img.shields.io/github/v/release/Hawkynt/ClaudeCodePortable)](https://github.com/Hawkynt/ClaudeCodePortable/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/Hawkynt/ClaudeCodePortable/total)](https://github.com/Hawkynt/ClaudeCodePortable/releases)
 
 > A self-contained, portable distribution of [Claude Code](https://docs.anthropic.com/claude/code)

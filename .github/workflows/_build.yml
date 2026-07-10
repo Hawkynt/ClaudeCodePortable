@@ -1,0 +1,78 @@
+name: Build artifacts
+
+# Shared artifact-build block. Called by release.yml (tag push) and nightly.yml
+# (workflow_run on CI success). One recipe, two consumers -- no duplication.
+#
+# Inputs:
+#   version       full version string (X.Y.Z.BUILD) baked into zip name
+#   release-kind  "release" | "nightly" -- controls staging directory name
+#   changelog     "yes" | "no"           -- whether to update CHANGELOG.md first
+#
+# Output artifact: `ClaudeCodePortable` containing one .zip in dist/.
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Full version X.Y.Z.BUILD"
+        required: true
+        type: string
+      release-kind:
+        description: '"release" or "nightly"'
+        required: true
+        type: string
+      changelog-flag:
+        description: 'Extra args to update-changelog.mjs (e.g. "--release v1.2.3" or "--nightly --version 1.2.3.4")'
+        required: true
+        type: string
+      ref:
+        description: "Git ref to build (defaults to workflow caller's ref)"
+        required: false
+        type: string
+        default: ""
+    outputs:
+      artifact-name:
+        description: "Name of the uploaded artifact"
+        value: ${{ jobs.build.outputs.artifact-name }}
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-name: ClaudeCodePortable
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0                              # full history for version.pl
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Update CHANGELOG
+        run: node .github/workflows/scripts/update-changelog.mjs ${{ inputs.changelog-flag }}
+
+      - name: Stage and zip
+        run: |
+          V="${{ inputs.version }}"
+          KIND="${{ inputs.release-kind }}"
+          if [ "$KIND" = "nightly" ]; then
+            STAGE="ClaudeCodePortable-nightly-$(date -u +%Y-%m-%d)"
+          else
+            STAGE="ClaudeCodePortable-${V}"
+          fi
+          rm -rf "$STAGE" dist
+          mkdir -p dist "$STAGE"
+          cp -r launcher Claude.bat claude.sh README.md LICENSE CHANGELOG.md .gitignore VERSION "$STAGE/"
+          [ -d assets ] && cp -r assets "$STAGE/" || true
+          chmod +x "$STAGE/claude.sh"
+          (cd "$(dirname "$STAGE")" && zip -r "dist/${STAGE}.zip" "$STAGE")
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClaudeCodePortable
+          path: dist/*.zip

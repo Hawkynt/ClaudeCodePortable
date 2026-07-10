@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bucketize, renderSection, prependSection, BUCKET_ORDER } from '../scripts/update-changelog.mjs';
+import { bucketize, renderSection, prependSection, BUCKET_ORDER } from '../.github/workflows/scripts/update-changelog.mjs';
 
 test('BUCKET_ORDER is Added, Changed, Fixed, Removed, TODO, Other', () => {
     assert.deepEqual(BUCKET_ORDER, ['Added', 'Changed', 'Fixed', 'Removed', 'TODO', 'Other']);
