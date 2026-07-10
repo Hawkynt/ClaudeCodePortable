@@ -7,15 +7,15 @@
 
 Three workflows, one shared build block, three helper scripts:
 
-| File                       | Trigger                             | Purpose                                 |
-|----------------------------|-------------------------------------|-----------------------------------------|
-| `ci.yml`                   | push + PR + `workflow_call`         | Build & test on every change            |
-| `release.yml`              | tag push `v*` + manual dispatch     | Cut a signed GitHub Release from a tag  |
-| `nightly.yml`              | successful CI run on `master`/`main`| Publish `nightly-YYYY-MM-DD` prerelease |
-| `_build.yml`               | `workflow_call` (internal)          | Shared artifact-build block             |
-| `scripts/version.pl`       | invoked by the workflows            | Compute `X.Y.Z.BUILD`                   |
-| `scripts/update-changelog.mjs` | invoked by the workflows        | Bucketise commits into CHANGELOG.md     |
-| `scripts/prune-nightlies.mjs`  | invoked by the workflows        | 3-gen (GFS) retention of nightlies      |
+| File                            | Trigger                             | Purpose                                    |
+|---------------------------------|-------------------------------------|--------------------------------------------|
+| `ci.yml`                        | push + PR + `workflow_call`         | Unit tests + bootstrap smoke test on ubuntu/windows/macOS |
+| `release.yml`                   | **manual dispatch**                 | Package + publish, then tag `vyyyyMMdd`  |
+| `nightly.yml`                   | successful CI run on `main`/`master`| Publish `nightly-yyyyMMdd` prerelease    |
+| `_build.yml`                    | `workflow_call` (internal)          | Builds the portable zip (shared packaging) |
+| `scripts/version.pl`            | invoked by the workflows            | Compose `MAJOR.MINOR.PATCH.BUILD` from `VERSION` + commit count |
+| `scripts/update-changelog.mjs`  | invoked by the workflows            | Bucketise commits into CHANGELOG.md        |
+| `scripts/prune-nightlies.mjs`   | invoked by the workflows            | 3-gen (GFS) retention of nightlies         |
 
 ## How it works
 
@@ -24,10 +24,10 @@ Three workflows, one shared build block, three helper scripts:
                     │
                     ▼
             ┌───────────────┐
-            │    ci.yml     │──► tests + smoke on ubuntu + windows + macOS
+            │    ci.yml     │──► tests on ubuntu + windows + macOS
             └───┬───────┬───┘
                 │       │
-    tag v* ─────┤       │  on success on master/main
+   dispatch ────┤       │  on success on main/master
                 ▼       ▼
         ┌──────────┐  ┌─────────────┐
         │ release  │  │  nightly    │
@@ -35,87 +35,64 @@ Three workflows, one shared build block, three helper scripts:
         └────┬─────┘  └─────┬───────┘
              │              │
              ▼              ▼
-        (both call _build.yml to produce the zip)
+        (both call _build.yml, which zips the portable launcher)
              │              │
              ▼              ▼
-     GH Release v1.2.3   nightly-YYYY-MM-DD (prerelease)
+  publish + tag vyyyyMMdd  nightly-yyyyMMdd (prerelease)
                                 │
                                 ▼
-                     scripts/prune-nightlies.mjs
-                     (GFS: 7 daily + 4 weekly + 3 monthly)
+                       scripts/prune-nightlies.mjs
+                       (GFS: 7 daily + 4 weekly + 3 monthly)
 ```
 
 ## What it's for
 
 - Every PR is built and tested on ubuntu + windows + macOS before it can merge.
-- Every merge to `master`/`main` produces a **tested** nightly prerelease that downstream users can pin.
-- Every `v*` tag cuts a proper release.
-- Old nightlies are auto-pruned on a **Grandfather-Father-Son** schedule — the most recent week is kept day-by-day, the month by week, the quarter by month.
+- Every merge to `main`/`master` produces a **tested** nightly prerelease.
+- A **manual dispatch** cuts a stable release from artifacts built by `_build.yml`, then tags the dated `vyyyyMMdd` Release at that commit.
+- Old nightlies are auto-pruned on a **Grandfather-Father-Son** schedule.
 
 ## Why it's built this way
 
-- **No cron triggers.** Scheduled builds run against whatever happened to be at HEAD on Sunday — they fire silently and can ship broken code. Event-driven triggers (push / PR / tag / `workflow_run`) only fire when something actually changed.
-- **Release calls CI via `workflow_call`.** Tag pushes don't retrigger `on: push` workflows, so the release pipeline invokes the same test matrix explicitly. Tests and releases stay in lockstep with zero copy-paste.
+- **No cron triggers.** Event-driven only — CI fires on PRs, nightlies fire when CI passes on main, stable releases fire on manual dispatch.
+- **Files drive versions, never tags.** The root `VERSION` file holds `MAJOR.MINOR.PATCH`; `version.pl` appends the commit count. The repo-level Release/tag is the date marker `vyyyyMMdd`.
+- **Release calls CI via `workflow_call`.** Calling ci.yml explicitly keeps tests and releases in lockstep with zero copy-paste.
 - **Nightly builds from the `workflow_run` payload's SHA**, not branch tip — so a nightly is always a build of code CI actually validated.
-- **`_build.yml` is shared**, not duplicated between `release.yml` and `nightly.yml`. Changes to the build recipe happen in one place.
-- **3-generation (GFS) retention**, not "keep last N". Last-N deletes old evidence on busy days; GFS guarantees at least one build per week for a month and one per month for a quarter, even under heavy churn.
-- **Version script is authoritative.** `MAJOR.MINOR.PATCH` comes from the `VERSION` file (or csproj `<Version>` for .NET repos); build number comes from `git rev-list --count HEAD`. No date-based versions, no manual bumping.
+- **`_build.yml` is the single packaging block**, shared by release and nightly so they never diverge.
+- **3-generation (GFS) retention**, not "keep last N". GFS guarantees at least one build per week for a month and one per month for a quarter.
 
 ## Scripts
 
 ### `version.pl`
 
-Computes the release version. Works for any repo with either a `VERSION` file or a csproj at root / one level deep.
+The one versioner, identical in every Hawkynt repo. This repo has no package
+manifests, so the single-version mode applies: the root `VERSION` file is the
+primary source and BUILD is the repo-wide commit count.
 
 ```
-perl .github/workflows/scripts/version.pl          # 1.0.0.123
-perl .github/workflows/scripts/version.pl --base   # 1.0.0
-perl .github/workflows/scripts/version.pl --build  # 123
-perl .github/workflows/scripts/version.pl --stamp  # writes X.Y.Z.BUILD into every csproj
+perl .github/workflows/scripts/version.pl          # "1.0.0.123"
+perl .github/workflows/scripts/version.pl --base   # "1.0.0"
+perl .github/workflows/scripts/version.pl --build  # "123"
 ```
 
-Resolution order for the base version: `VERSION` file → first `<Version>` tag in any root-level csproj → `Directory.Build.props`.
+> Stable releases are tagged with a **date marker** `vyyyyMMdd`, not a version.
 
 ### `update-changelog.mjs`
 
-Prepends a new section to `CHANGELOG.md`. Commit-subject convention:
-
-| Prefix | Bucket  |
-|--------|---------|
-| `+`    | Added   |
-| `*`    | Changed |
-| `#`    | Fixed   |
-| `-`    | Removed |
-| `!`    | TODO    |
-| _any_  | Other   |
-
-```
-node .github/workflows/scripts/update-changelog.mjs --release v1.2.3
-node .github/workflows/scripts/update-changelog.mjs --nightly --version 1.0.0.123
-```
+Prepends a new section to `CHANGELOG.md`. Commit-subject convention: `+` Added, `*` Changed, `#` Fixed, `-` Removed, `!` TODO, anything else → Other.
 
 ### `prune-nightlies.mjs`
 
-GFS retention with `DAILY_KEEP=7`, `WEEKLY_KEEP=4`, `MONTHLY_KEEP=3`. Zero inputs beyond `--dry-run`.
-
-```
-node .github/workflows/scripts/prune-nightlies.mjs            # deletes old nightlies
-node .github/workflows/scripts/prune-nightlies.mjs --dry-run  # prints keep/drop plan
-```
-
-Promotion-based tiering: daily slots claim the 7 newest; weekly slots claim the newest release of each of the 4 next oldest ISO weeks (skipping weeks the daily tier already covers); monthly slots do the same for months. Each release ends up in at most one tier, so gaps in activity don't waste retention.
+GFS retention with `DAILY_KEEP=7`, `WEEKLY_KEEP=4`, `MONTHLY_KEEP=3`. Dry-run with `--dry-run`.
 
 ## Who maintains this
 
-Every repo in the CompressionWorkbench / PNGCrushCS / AnythingToGif / ClaudeCodePortable family owns its own copy of this pipeline. When changing it:
-
-1. Prototype the change in this repo's `.github/workflows/`.
-2. Verify via `workflow_dispatch` (all workflows support it).
-3. Mirror to the other repos.
+This pipeline follows the shared Hawkynt repo-family template
+(`hawkynt-standard`). When changing it, prototype in the template then mirror
+the change here.
 
 ## Release artifacts
 
-| Artifact                                       | Produced by          |
-|------------------------------------------------|----------------------|
-| `ClaudeCodePortable-<version>.zip`             | release              |
-| `ClaudeCodePortable-nightly-<YYYY-MM-DD>.zip`  | nightly (prerelease) |
+| Artifact                                 | Produced by          |
+|------------------------------------------|----------------------|
+| `app-artifacts` (the portable zip)       | release + nightly    |

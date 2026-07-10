@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { bucketize, renderSection, prependSection, BUCKET_ORDER } from '../.github/workflows/scripts/update-changelog.mjs';
 
-test('BUCKET_ORDER is Added, Changed, Fixed, Removed, TODO, Other', () => {
-    assert.deepEqual(BUCKET_ORDER, ['Added', 'Changed', 'Fixed', 'Removed', 'TODO', 'Other']);
+test('BUCKET_ORDER follows the commit-prefix convention + - * # !', () => {
+    assert.deepEqual(BUCKET_ORDER, ['Added', 'Removed', 'Changed', 'Fixed', 'TODO', 'Other']);
 });
 
 test('bucketize maps +/*/#/-/! prefixes to the right buckets', () => {
@@ -53,7 +53,7 @@ test('renderSection emits buckets in the fixed order and skips empty ones', () =
     assert.ok(addedIdx   !== -1);
     assert.ok(fixedIdx   !== -1);
     assert.ok(removedIdx !== -1);
-    assert.ok(addedIdx < fixedIdx && fixedIdx < removedIdx, 'buckets must render in Added/Fixed/Removed order');
+    assert.ok(addedIdx < removedIdx && removedIdx < fixedIdx, 'buckets must render in Added/Removed/Fixed order');
     assert.ok(!lines.includes('### Changed'));
     assert.ok(!lines.includes('### TODO'));
     assert.ok(!lines.includes('### Other'));

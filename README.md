@@ -4,25 +4,26 @@
   <img src="./assets/claude.png" alt="ClaudeCodePortable" width="180">
 </p>
 
-[![License](https://img.shields.io/github/license/Hawkynt/ClaudeCodePortable)](./LICENSE)
-![Language](https://img.shields.io/github/languages/top/Hawkynt/ClaudeCodePortable?color=purple)
-[![CI](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/ci.yml)
-[![Release](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/release.yml/badge.svg)](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/release.yml)
-[![Latest release](https://img.shields.io/github/v/release/Hawkynt/ClaudeCodePortable?label=release&sort=semver)](https://github.com/Hawkynt/ClaudeCodePortable/releases/latest)
-[![Latest nightly](https://img.shields.io/github/v/release/Hawkynt/ClaudeCodePortable?include_prereleases&label=nightly&sort=date)](https://github.com/Hawkynt/ClaudeCodePortable/releases?q=prerelease%3Atrue)
-[![Last Commit](https://img.shields.io/github/last-commit/Hawkynt/ClaudeCodePortable?branch=master) ![Activity](https://img.shields.io/github/commit-activity/y/Hawkynt/ClaudeCodePortable?branch=master)](https://github.com/Hawkynt/ClaudeCodePortable/commits/master)
-![LineCount](https://tokei.rs/b1/github/Hawkynt/ClaudeCodePortable?color=magenta)
-![Size](https://img.shields.io/github/languages/code-size/Hawkynt/ClaudeCodePortable?color=green) / ![Repo-Size](https://img.shields.io/github/repo-size/Hawkynt/ClaudeCodePortable?color=red)
-[![Stars](https://img.shields.io/github/stars/Hawkynt/ClaudeCodePortable?color=yellow)](https://github.com/Hawkynt/ClaudeCodePortable/stargazers)
+[![License](https://img.shields.io/github/license/Hawkynt/ClaudeCodePortable)](https://github.com/Hawkynt/ClaudeCodePortable/blob/main/LICENSE)
+[![Language](https://img.shields.io/github/languages/top/Hawkynt/ClaudeCodePortable?color=8957D5)](https://github.com/Hawkynt/ClaudeCodePortable)
+
+[![CI](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Hawkynt/ClaudeCodePortable/actions/workflows/ci.yml)
+![Last Commit](https://img.shields.io/github/last-commit/Hawkynt/ClaudeCodePortable?branch=main)
+![Activity](https://img.shields.io/github/commit-activity/m/Hawkynt/ClaudeCodePortable)
+
+[![Stars](https://img.shields.io/github/stars/Hawkynt/ClaudeCodePortable?color=FFD700)](https://github.com/Hawkynt/ClaudeCodePortable/stargazers)
+[![Forks](https://img.shields.io/github/forks/Hawkynt/ClaudeCodePortable?color=008080)](https://github.com/Hawkynt/ClaudeCodePortable/network/members)
+[![Issues](https://img.shields.io/github/issues/Hawkynt/ClaudeCodePortable)](https://github.com/Hawkynt/ClaudeCodePortable/issues)
+![Code Size](https://img.shields.io/github/languages/code-size/Hawkynt/ClaudeCodePortable?color=4CAF50)
+![Repo Size](https://img.shields.io/github/repo-size/Hawkynt/ClaudeCodePortable?color=FF9800)
+
+[![Release](https://img.shields.io/github/v/release/Hawkynt/ClaudeCodePortable)](https://github.com/Hawkynt/ClaudeCodePortable/releases/latest)
+[![Nightly](https://img.shields.io/github/v/release/Hawkynt/ClaudeCodePortable?include_prereleases&sort=date&filter=nightly-*&label=nightly&color=FF9800)](https://github.com/Hawkynt/ClaudeCodePortable/releases)
 [![Downloads](https://img.shields.io/github/downloads/Hawkynt/ClaudeCodePortable/total)](https://github.com/Hawkynt/ClaudeCodePortable/releases)
 
-> A self-contained, portable distribution of [Claude Code](https://docs.anthropic.com/claude/code)
-with multi-profile support, a keyboard-driven session picker, cross-platform
-bootstrap scripts, and Windows Explorer integration. Drop the folder on any
-USB stick, cloud share, or working directory and run `Claude.bat` (Windows)
-or `claude.sh` (Linux/macOS) — no admin rights required.
+> A self-contained, portable distribution of [Claude Code](https://docs.anthropic.com/claude/code) with multi-profile support, a keyboard-driven session picker, cross-platform bootstrap scripts, and Windows Explorer integration — drop the folder on any USB stick, cloud share, or working directory and run `Claude.bat` (Windows) or `claude.sh` (Linux/macOS), no admin rights required.
 
-## Features
+## ✨ Features
 
 - **Portable runtimes**: Node.js (+ npm/npx), Git, Bash, Perl (+ cpan), Python (+ pip), and
   PowerShell 7 are downloaded on first run into `app/`, each with SHA256
@@ -83,7 +84,7 @@ Only `launcher/`, `Claude.bat`, `claude.sh`, this README, and the
 license/gitignore are checked in. `app/` and `profiles/` are populated at
 runtime and must never be committed.
 
-## Getting started
+## 📦 Getting started
 
 ### Windows
 
@@ -216,7 +217,7 @@ The launcher exports:
 
 No data is sent anywhere by the launcher itself.
 
-## Screenshots
+## 🖼️ Screenshots
 
 ### Session picker
 
@@ -315,13 +316,14 @@ Ubuntu, Windows, and macOS (`.github/workflows/ci.yml`).
 
 ### Nightly builds (automatic)
 
-Every push to `main` triggers `.github/workflows/nightly.yml`, which:
+Every successful CI run on `master` triggers `.github/workflows/nightly.yml`,
+which:
 
-1. Runs the full test suite.
-2. Builds `ClaudeCodePortable-nightly-YYYY-MM-DD.zip`.
-3. Publishes it as a GitHub pre-release with tag `nightly-YYYY-MM-DD`.
+1. Builds `ClaudeCodePortable-<version>.zip` from the exact SHA CI validated
+   (shared packaging block `.github/workflows/_build.yml`).
+2. Publishes it as a GitHub pre-release with tag `nightly-YYYYMMDD`.
    Pushing again on the same day overwrites the existing nightly.
-4. Prunes old nightlies with a promotion-based Grandfather-Father-Son
+3. Prunes old nightlies with a promotion-based Grandfather-Father-Son
    rotation. Gaps in activity never waste a slot:
    - **Son**: the 7 newest nightlies, whatever their dates are.
    - **Father**: from older releases, one per distinct ISO-week, up to 4
@@ -334,28 +336,37 @@ You can grab the latest nightly from the repo's
 [releases page](https://github.com/Hawkynt/ClaudeCodePortable/releases)
 without ever cutting a tag.
 
-### Cutting a versioned release (optional)
+### Cutting a stable release (manual dispatch)
 
 1. Bump `VERSION` if you want a new major/minor/patch base.
-2. Tag the release: `git tag v1.0.0 && git push --tags`.
-3. `.github/workflows/release.yml` builds `ClaudeCodePortable-<version>.zip`
-   and attaches it to an auto-generated GitHub release.
+2. Dispatch `.github/workflows/release.yml` (Actions → Release → Run
+   workflow). It re-runs the full CI matrix, builds
+   `ClaudeCodePortable-<version>.zip`, refreshes `CHANGELOG.md`, and cuts a
+   GitHub release tagged with the date marker `vYYYYMMDD`.
 
 ### Version format
 
-`scripts/version.pl` prints `MAJOR.MINOR.PATCH.BUILD`. The first three
-come from the `VERSION` file; `BUILD` is `git rev-list --count HEAD`.
-Call it with `--base` or `--build` to get just one segment.
+`.github/workflows/scripts/version.pl` prints `MAJOR.MINOR.PATCH.BUILD`. The
+first three come from the `VERSION` file; `BUILD` is
+`git rev-list --count HEAD`. Call it with `--base` or `--build` to get just
+one segment.
 
 ### Local dry-run of the nightly pruner
 
 ```bash
-node scripts/prune-nightlies.mjs --dry-run
+node .github/workflows/scripts/prune-nightlies.mjs --dry-run
 ```
 
 (Requires `gh` CLI and a GitHub auth token.) Prints the keep/drop plan
 without touching any releases.
 
-## License
+## ❤️ Support
 
-LGPL 2.1. See [LICENSE](./LICENSE).
+If this project saves you time or money, consider supporting its development:
+
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors)](https://github.com/sponsors/Hawkynt)
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?logo=paypal)](https://www.paypal.me/hawkynt)
+
+## 📜 License
+
+Licensed under LGPL-3.0-or-later — see [LICENSE](LICENSE).
