@@ -17,8 +17,9 @@ import {
 } from './profiles.mjs';
 import { isShellRegistered, installShell, uninstallShell } from './registry.mjs';
 import { countSessions } from './sessions.mjs';
+import { runMergeWizard } from './merge-wizard.mjs';
 
-const RESERVED = new Set(['N','D','R','X','U','Q']);
+const RESERVED = new Set(['N','D','R','M','X','U','Q']);
 
 function makeKeyPool() {
     const keys = ['1','2','3','4','5','6','7','8','9'];
@@ -107,7 +108,7 @@ export async function runProfileMenu({
             const xLabel = registered ? `[X] refresh ${menuName}` : `[X] register ${menuName}`;
             const uLabel = registered ? `   [U] unregister ${menuName}` : '';
             console.log(color('darkmagenta',
-                '[N] new profile    [D <key>] delete    [R <key>] rename    ' + xLabel + uLabel));
+                '[N] new profile    [D <key>] delete    [R <key>] rename    [M <key>] merge config into    ' + xLabel + uLabel));
         }
         console.log('');
 
@@ -144,6 +145,9 @@ export async function runProfileMenu({
                         createProfile(name);
                         console.log(color('darkgreen', `  created profile '${name}'.`));
                         if (isShellRegistered()) { installShell(); console.log(color('darkgreen', '  Explorer menu refreshed.')); }
+                        if (await promptYesNo('  seed it with template skills / config from another profile?')) {
+                            await runMergeWizard(name);
+                        }
                     } catch (e) {
                         console.log(color('red', '  ' + e.message));
                     }
@@ -192,6 +196,13 @@ export async function runProfileMenu({
                     }
                 }
                 await sleep(500);
+                continue;
+            }
+            if (ch === 'M') {
+                process.stdout.write('M (merge config into)\n');
+                const ch2 = await pickKeyFromMap(map);
+                if (!ch2) { continue; }
+                await runMergeWizard(map[ch2].name);
                 continue;
             }
             if (ch === 'X') {

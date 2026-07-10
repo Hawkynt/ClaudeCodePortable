@@ -159,12 +159,37 @@ or start a new session deliberately.
 | `Enter`          | use `default` (or the first profile if none is named `default`)       |
 | `Esc`            | abort                                                                 |
 | digit / letter   | pick a specific profile                                               |
-| `N`              | create a new profile (prompts for a name)                             |
+| `N`              | create a new profile (prompts for a name, then offers to seed it — see below) |
 | `D` then `<key>` | delete a profile (double confirm; removes all sessions + credentials) |
 | `R` then `<key>` | rename a profile (rename to `default` = make default)                 |
+| `M` then `<key>` | merge template skills / config from another profile into a profile    |
 | `X`              | register (or refresh) the Explorer context menu                       |
 | `U`              | unregister the Explorer context menu                                  |
 | `Q`              | quit                                                                  |
+
+### Profile config merge & the template skill library
+
+Creating a profile (`N`) offers to seed it; `M` runs the same wizard against an
+existing profile. The wizard lets you multi-select what to pull in:
+
+- **Template skills** from `templates/skills/` — a profile-agnostic skill
+  library shipped with the launcher (rigor pack: `plan-gate`,
+  `adversarial-verify`, `live-state-truth`, `scope-fence`, `ruthless-editor`,
+  `memory-hygiene`; plus `structured-memory` self-compacting memory,
+  `codebase-index` with a syntax-aware Python indexer, `search-discipline`,
+  `prose-first`, `jina-reader`, and the down-model rigor set
+  `finish-the-task`, `effort-scaling`, `root-cause-first`, `done-means-done`).
+- **Template CLAUDE.md** (`templates/CLAUDE.md`) — global instructions with a
+  Fable-style unconditional skill gate ("check for relevant skills BEFORE
+  acting"), the highest-leverage fix for models that under-trigger skills.
+- **From another profile**: individual skills, MCP servers (`mcpServers` in
+  `.claude.json`), the status line (`statusline.py` + `statusLine` setting),
+  model configuration (`model`, `effortLevel`), and `CLAUDE.md`.
+
+Merging is strictly additive: anything already present in the target profile
+wins and is reported as skipped — a merge never overwrites a profile's own
+skills, servers, or settings. The logic lives in `launcher/profile-merge.mjs`,
+the wizard in `launcher/merge-wizard.mjs`.
 
 ## Pinned portable runtimes
 

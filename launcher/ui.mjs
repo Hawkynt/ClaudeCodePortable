@@ -185,6 +185,63 @@ export async function promptYesNo(question) {
 }
 
 // ---------------------------------------------------------------------------
+// Multi-select checkbox list
+// ---------------------------------------------------------------------------
+/**
+ * Interactive checkbox list. `items` is an array of:
+ *   { label, checked = false, header = false }
+ * Headers are non-selectable section titles. Navigation: Up/Down (or k/j),
+ * Space toggles, A toggles all, Enter confirms, Esc cancels.
+ * Returns the array of selected item indices, or null on cancel.
+ */
+export async function multiSelect(title, items, { hint = '' } = {}) {
+    const selectable = items.map((it, i) => (it.header ? null : i)).filter(i => i !== null);
+    if (selectable.length === 0) return [];
+    const checked = new Set(items.map((it, i) => (!it.header && it.checked ? i : null))
+                                 .filter(i => i !== null));
+    let cursor = selectable[0];
+
+    const render = () => {
+        clearScreen();
+        banner(title, 'magenta');
+        if (hint) console.log(color('darkmagenta', ' ' + hint));
+        console.log(color('darkmagenta',
+            ' [Space] toggle   [A] all/none   [Enter] confirm   [Esc] cancel'));
+        console.log('');
+        for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            if (it.header) {
+                console.log(color('cyan', ' ' + it.label));
+                continue;
+            }
+            const box = checked.has(i) ? '[x]' : '[ ]';
+            const line = `  ${box} ${it.label}`;
+            console.log(i === cursor ? color('brightwhite', '>' + line.slice(1))
+                                     : color(checked.has(i) ? 'green' : 'yellow', line));
+        }
+        console.log('');
+    };
+
+    while (true) {
+        render();
+        const k = await readKey();
+        if (k.isEscape) return null;
+        if (k.isEnter)  return [...checked].sort((a, b) => a - b);
+        const pos = selectable.indexOf(cursor);
+        if (k.name === 'up'   || k.name === 'k') {
+            cursor = selectable[(pos - 1 + selectable.length) % selectable.length];
+        } else if (k.name === 'down' || k.name === 'j') {
+            cursor = selectable[(pos + 1) % selectable.length];
+        } else if (k.name === 'space') {
+            if (checked.has(cursor)) checked.delete(cursor); else checked.add(cursor);
+        } else if ((k.sequence || '').toLowerCase() === 'a') {
+            if (checked.size === selectable.length) checked.clear();
+            else selectable.forEach(i => checked.add(i));
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Formatting
 // ---------------------------------------------------------------------------
 export function truncate(str, n = 60) {

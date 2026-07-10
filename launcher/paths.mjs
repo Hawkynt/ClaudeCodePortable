@@ -27,6 +27,12 @@ export const APP_ROOT      = path.join(PORTABLE_ROOT, 'app');
 // isolated integration tests that point the launcher at a fixture tree.
 export const PROFILES_ROOT = process.env.CLAUDE_PROFILES_ROOT || path.join(PORTABLE_ROOT, 'profiles');
 
+// Profile-agnostic skill template library (committed to git, mergeable into
+// any profile via profile-merge.mjs).
+export const TEMPLATE_SKILLS_DIR = path.join(PORTABLE_ROOT, 'templates', 'skills');
+// Template CLAUDE.md (skill-gate global instructions), same merge semantics.
+export const TEMPLATE_CLAUDE_MD  = path.join(PORTABLE_ROOT, 'templates', 'CLAUDE.md');
+
 // Per-tool install locations
 export const NODE_DIR   = path.join(APP_ROOT, 'node');
 export const GIT_DIR    = path.join(APP_ROOT, 'git');      // MinGit (standalone git)
