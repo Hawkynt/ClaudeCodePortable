@@ -17,3 +17,7 @@ _*.ps1
 _*.ps1_
 _*.mjs
 _*.sh
+
+# Python bytecode
+__pycache__/
+*.pyc
