@@ -25,13 +25,24 @@ node --test
 ## Repository layout
 
 ```
-launcher/        ES-module launcher (entry: launcher.mjs)
+launcher/        ES-module launchers (claude: launcher.mjs; siblings: happy-/codex-/copilot-/antigravity-launcher.mjs on tool-launcher-core.mjs)
+templates/       skill template library + skill-gate CLAUDE.md (committed)
 tests/          node --test unit tests
 assets/         icon + logo
 .github/        CI/CD pipeline: workflows + helper scripts (version.pl, prune-nightlies, update-changelog)
 app/            portable runtimes, auto-downloaded (git-ignored)
 profiles/      per-profile data, auto-created  (git-ignored)
 ```
+
+## Adding a sibling tool launcher
+
+1. Copy `Claude.bat`/`claude.sh`, point the last line at `launcher/<tool>-launcher.mjs`.
+2. Write the launcher on top of [`launcher/tool-launcher-core.mjs`](./launcher/tool-launcher-core.mjs)
+   (`resolveProfile` → `baseProfileEnv` + tool env vars → `ensureNpmTool` → `spawnTool`);
+   add the tool's config-dir helper in [`launcher/paths.mjs`](./launcher/paths.mjs).
+3. Register it in the `TOOLS` list in [`launcher/registry.mjs`](./launcher/registry.mjs)
+   and, if it has a native skills/instructions format, add a layout to
+   [`launcher/skills-export.mjs`](./launcher/skills-export.mjs).
 
 ## Adding a portable tool
 

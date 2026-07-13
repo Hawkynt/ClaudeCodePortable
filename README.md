@@ -21,7 +21,7 @@
 [![Nightly](https://img.shields.io/github/v/release/Hawkynt/ClaudeCodePortable?include_prereleases&sort=date&filter=nightly-*&label=nightly&color=FF9800)](https://github.com/Hawkynt/ClaudeCodePortable/releases)
 [![Downloads](https://img.shields.io/github/downloads/Hawkynt/ClaudeCodePortable/total)](https://github.com/Hawkynt/ClaudeCodePortable/releases)
 
-> A self-contained, portable distribution of [Claude Code](https://docs.anthropic.com/claude/code) with multi-profile support, a keyboard-driven session picker, cross-platform bootstrap scripts, and Windows Explorer integration — drop the folder on any USB stick, cloud share, or working directory and run `Claude.bat` (Windows) or `claude.sh` (Linux/macOS), no admin rights required.
+> A self-contained, portable distribution of the major agentic coding CLIs — [Claude Code](https://docs.anthropic.com/claude/code), [OpenAI Codex](https://developers.openai.com/codex/cli), [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli), and [Google Antigravity](https://antigravity.google/) — with per-tool multi-profile support, a keyboard-driven session/profile picker, cross-platform bootstrap scripts, and Windows Explorer integration. Drop the folder on any USB stick, cloud share, or working directory and run `Claude.bat` / `Codex.bat` / `Copilot.bat` / `Antigravity.bat` (Windows) or `claude.sh` / `codex.sh` / `copilot.sh` / `antigravity.sh` (Linux/macOS), no admin rights required.
 
 ## ✨ Features
 
@@ -31,6 +31,13 @@
 - **Multi-profile**: keep independent Claude accounts side-by-side under
   `profiles/<name>/`. Each profile has its own login, settings, session
   history, npm cache, and npm-global.
+- **Multi-tool**: the same portable + per-profile experience for OpenAI
+  Codex CLI (`Codex.bat`), GitHub Copilot CLI (`Copilot.bat`), Google
+  Antigravity CLI (`Antigravity.bat`), and happy-coder (`Happy.bat`) — see
+  *Sibling launchers* below.
+- **Skill template library**: 15 rigor skills + a skill-gate instructions
+  file under `templates/`, mergeable into any Claude profile and exportable
+  into Codex/Copilot/Antigravity native formats (`--seed-skills`).
 - **Session picker**: inside any project directory, the launcher shows
   previous sessions with relative timestamps, message counts, and the first
   and last user prompt of each. Resume with a keypress; pin, label, delete,
@@ -38,9 +45,10 @@
   `--dangerously-skip-permissions` per launch.
 - **Profile picker**: switch or manage profiles interactively from the
   session menu. Create / delete / rename profiles in place.
-- **Windows Explorer integration**: cascading *"Open Claude Code"* entry in
-  the folder right-click menu with one sub-entry per profile.
-- **Daily auto-update**: checks for a newer `@anthropic-ai/claude-code` once
+- **Windows Explorer integration**: one cascading *"Open <tool>"* entry per
+  launcher in the folder right-click menu, each with one sub-entry per
+  profile.
+- **Daily auto-update**: checks each npm-installed tool for updates once
   per calendar day, per profile.
 - **Zero external deps**: the launcher is plain ES-module JavaScript; no
   `node_modules`, no build step.
@@ -49,22 +57,36 @@
 
 ```
 ClaudeCodePortable/
-├── Claude.bat            ← Windows bootstrap (installs Node, runs launcher)
-├── claude.sh             ← Linux/macOS bootstrap
+├── Claude.bat / claude.sh           ← Claude Code bootstrap (installs Node, runs launcher)
+├── Happy.bat                        ← happy-coder launcher (remote-ready Claude)
+├── Codex.bat / codex.sh             ← OpenAI Codex CLI launcher
+├── Copilot.bat / copilot.sh         ← GitHub Copilot CLI launcher
+├── Antigravity.bat / antigravity.sh ← Google Antigravity CLI launcher
 ├── README.md
 ├── LICENSE
 ├── .gitignore
 ├── launcher/             ← ES-module launcher (all logic)
-│   ├── launcher.mjs      ← entry point
+│   ├── launcher.mjs      ← Claude entry point
+│   ├── happy-launcher.mjs        ← happy-coder entry point
+│   ├── codex-launcher.mjs        ← Codex entry point (CODEX_HOME per profile)
+│   ├── copilot-launcher.mjs      ← Copilot entry point (COPILOT_HOME per profile)
+│   ├── antigravity-launcher.mjs  ← Antigravity entry point (HOME-redirected)
+│   ├── tool-launcher-core.mjs    ← shared profile/PATH/env/install/spawn plumbing
+│   ├── skills-export.mjs         ← template skills → native tool layouts
+│   ├── profile-merge.mjs         ← selective config merge between profiles
+│   ├── merge-wizard.mjs          ← interactive merge multi-select
 │   ├── paths.mjs         ← tool versions, URLs, SHA256, path resolution
 │   ├── install.mjs       ← SHA256-verified downloads + extraction
 │   ├── profiles.mjs      ← profile CRUD + email lookup
 │   ├── sessions.mjs      ← .jsonl scanning + delete/move/copy
-│   ├── registry.mjs      ← Windows Explorer submenu via reg.exe
+│   ├── registry.mjs      ← multi-tool file-manager context menus
 │   ├── args.mjs          ← CLI flag parser
 │   ├── ui.mjs            ← ANSI colors, raw-mode input, prompts, relative time
 │   ├── session-menu.mjs  ← cyan / green picker
 │   └── profile-menu.mjs  ← magenta / cyan picker
+├── templates/            ← profile-agnostic template library (committed)
+│   ├── CLAUDE.md         ← skill-gate global instructions
+│   └── skills/           ← 15 skills (SKILL.md dirs), mergeable/exportable
 ├── app/                  ← auto-installed portable runtimes (git-ignored)
 │   ├── node/
 │   ├── git/              ← MinGit (Windows only; standalone `git`)
@@ -75,12 +97,16 @@ ClaudeCodePortable/
 └── profiles/             ← per-profile data (git-ignored)
     └── default/
         ├── claude-config/     ← CLAUDE_CONFIG_DIR (sessions, settings, .claude.json) — owned by Claude
+        ├── codex-config/      ← CODEX_HOME (config.toml, auth.json, skills/) — owned by Codex
+        ├── copilot-config/    ← COPILOT_HOME (settings, skills/, instructions) — owned by Copilot
+        ├── copilot-cache/     ← COPILOT_CACHE_HOME
+        ├── .gemini/           ← Antigravity CLI state (via HOME redirection)
         ├── cp-meta/           ← launcher-owned metadata (pin state, friendly labels) — NOT inside claude-config/
         ├── npm-cache/
-        └── npm-global/        ← @anthropic-ai/claude-code lives here
+        └── npm-global/        ← npm-installed CLIs live here (claude, happy, codex, copilot)
 ```
 
-Only `launcher/`, `Claude.bat`, `claude.sh`, this README, and the
+Only `launcher/`, `templates/`, the bootstrap scripts, this README, and the
 license/gitignore are checked in. `app/` and `profiles/` are populated at
 runtime and must never be committed.
 
@@ -121,8 +147,10 @@ then the launcher fills in the rest.
 | `--continue` / `-c` / `--resume-last`                   | skip menu, resume last session                                                                                                                                                                                                     |
 | `--resume <id>`                                         | skip menu, resume a specific session                                                                                                                                                                                               |
 | `-p`, `--print`, `--prompt`                             | claude-native; skips the menu automatically                                                                                                                                                                                        |
+| `--seed-skills`                                         | (sibling launchers) export the template skills + instructions into the tool's config home                                                                                                                                          |
 
-Any flag not recognized by the launcher is forwarded to `claude` verbatim.
+Any flag not recognized by the launcher is forwarded to the underlying tool
+(`claude`, `happy`, `codex`, `copilot`, or `agy`) verbatim.
 
 ### Environment variables
 
@@ -191,6 +219,85 @@ Merging is strictly additive: anything already present in the target profile
 wins and is reported as skipped — a merge never overwrites a profile's own
 skills, servers, or settings. The logic lives in `launcher/profile-merge.mjs`,
 the wizard in `launcher/merge-wizard.mjs`.
+
+## Sibling launchers (Codex, Copilot, Antigravity, Happy)
+
+The same portable, per-profile experience exists for other agentic CLIs —
+each with its own bootstrap script that reuses the shared runtimes in `app/`
+and the profiles in `profiles/`:
+
+| Launcher          | Tool                         | Install                | Config isolation                          | Auth isolation                                  |
+| ----------------- | ---------------------------- | ---------------------- | ----------------------------------------- | ----------------------------------------------- |
+| `Claude.bat/.sh`  | `@anthropic-ai/claude-code`  | npm into profile       | `CLAUDE_CONFIG_DIR` → profile             | per profile (`.credentials.json` in config dir) |
+| `Happy.bat`       | `happy-coder` (wraps Claude) | npm into profile       | via Claude's config dir                   | per profile                                     |
+| `Codex.bat/.sh`   | `@openai/codex`              | npm into profile       | `CODEX_HOME` → profile                    | per profile (`auth.json` in `CODEX_HOME`)       |
+| `Copilot.bat/.sh` | `@github/copilot`            | npm into profile       | `COPILOT_HOME`/`COPILOT_CACHE_HOME`       | ⚠ OS keychain is shared — set `GH_TOKEN` per profile for isolation |
+| `Antigravity.bat/.sh` | Google Antigravity CLI (`agy`) | official installer, HOME-redirected | `HOME`/`USERPROFILE`/`LOCALAPPDATA` → profile (no documented relocation var) | per profile on **Windows** (login swapped in/out of the machine keyring around launch); shared on Linux/macOS |
+
+**Profiles are per tool, not shared.** Every profile directory carries a
+`.tool` marker (`claude`, `codex`, `copilot`, `antigravity`); profiles
+without a marker are Claude profiles (legacy). Each launcher's picker lists
+only its own tool's profiles, shows that tool's own account identity
+(Codex: ChatGPT email from `auth.json`; Copilot: GitHub login; Antigravity:
+Google account from `agy`'s `cli.log`; never another tool's login), and
+creates new profiles pre-marked for the tool. Sibling
+launchers always open the picker on interactive starts — even with zero or
+one profile — so you can see accounts and manage profiles before launch;
+with `--skip-menu` a missing profile is auto-created, named after the tool
+(`profiles/codex/`, `profiles/copilot/`, ...). Existing pre-multi-tool
+profiles are marked `claude` automatically on the next launcher start.
+`Happy.bat` shares Claude's profiles by design (it wraps Claude).
+`--list-profiles` shows the owner of every profile. Antigravity's exported
+skills land in `~/.gemini/config/skills/` (the location its own
+customization guide documents for machine-global skills).
+
+All launchers install their tool on first run into
+the selected profile and check for updates once per day. `--seed-skills`
+(or the first-run prompt) exports the template skill library + skill-gate
+instructions into the tool's native layout: `$CODEX_HOME/skills/` +
+`AGENTS.md` for Codex, `$COPILOT_HOME/skills/` + `copilot-instructions.md`
+for Copilot, and an `antigravity-cli/plugins/portable-skills/` bundle +
+`GEMINI.md` for Antigravity. Exports are additive — existing files are never
+overwritten.
+
+Registering the file-manager context menu (`X` in the profile picker) now
+creates one cascading entry per launcher found at the portable root, each
+with a per-profile submenu.
+
+### First run, per launcher
+
+What to expect when trying each one:
+
+1. **`Codex.bat`** — profile picker → npm-installs `@openai/codex` into the
+   profile → offers to seed skills/AGENTS.md → starts `codex`. First Codex
+   start asks for ChatGPT login; the token lands in
+   `profiles/<p>/codex-config/auth.json` (fully per-profile). Resume via
+   Codex's own `codex resume`.
+2. **`Copilot.bat`** — same flow with `@github/copilot`. First start runs the
+   GitHub device-flow login; on machines with a Windows keychain the token is
+   stored there and thus SHARED across profiles — for real isolation set
+   `GH_TOKEN` before launching (the launcher reminds you when none is set).
+3. **`Antigravity.bat`** — no npm package: the launcher runs Google's official
+   installer with the profile-redirected environment, so `agy` and its
+   `~/.gemini` state land inside the profile. If the installer URL has moved,
+   it prints copy-paste manual install instructions instead of failing
+   silently. Google login opens a browser; Antigravity stores the token in the
+   machine keyring (`gemini:antigravity`), which is not path-isolable — so on
+   **Windows** the launcher makes it per-profile anyway: it swaps the profile's
+   saved token into the keyring slot before launch and captures the (possibly
+   refreshed) token back into `profiles/<p>/.gemini/credential.json` on exit.
+   The profile picker shows each Antigravity profile's own account (read from
+   `agy`'s `cli.log`). On Linux/macOS the swap is not implemented and the login
+   stays shared. First login for a profile is captured automatically; later
+   launches restore it.
+
+All three accept `--profile <name>`, `--skip-menu`/`--new`, `--seed-skills`,
+and forward any other flags to the underlying tool.
+
+> Antigravity notes: the installer URLs are best-effort (Google moved fast
+> after retiring Gemini CLI for individual accounts in June 2026); when the
+> automated install fails, the launcher prints manual install guidance with
+> the profile's redirected environment.
 
 ## Pinned portable runtimes
 
