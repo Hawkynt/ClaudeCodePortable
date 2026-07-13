@@ -1,6 +1,6 @@
 ---
 name: search-discipline
-description: Use whenever deciding whether to search the WEB and how to construct the queries - answering factual questions, evaluating products/versions/APIs, encountering unfamiliar names or terms. Encodes the rate-of-change rule, the unrecognized-entity rule, effort scaling, query construction, and source-trust calibration. Do not use for pure reasoning tasks with no factual dependency, nor for lookups inside a local repo or docs tree - those are grep/read questions, not search questions.
+description: "Use whenever deciding whether to search the WEB and how to construct the queries - answering factual questions, evaluating products/versions/APIs, encountering unfamiliar names or terms. Encodes the rate-of-change rule, the unrecognized-entity rule, effort scaling, query construction, and source-trust calibration. Do not use for pure reasoning tasks with no factual dependency, nor for lookups inside a local repo or docs tree - those are grep/read questions, not search questions."
 ---
 
 # search-discipline: search on rate-of-change, not on confidence

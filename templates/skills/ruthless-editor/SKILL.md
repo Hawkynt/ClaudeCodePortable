@@ -1,6 +1,6 @@
 ---
 name: ruthless-editor
-description: Use whenever you produce prose a human will read - documentation, READMEs, reports, summaries, commit messages, emails, blog drafts, PR descriptions. Runs a cutting pass where every sentence must earn its place. Target: 30 percent shorter with zero information loss. Do not use on code or on text the user asked you to preserve verbatim.
+description: "Use whenever you produce prose a human will read - documentation, READMEs, reports, summaries, commit messages, emails, blog drafts, PR descriptions. Runs a cutting pass where every sentence must earn its place. Target: 30 percent shorter with zero information loss. Do not use on code or on text the user asked you to preserve verbatim."
 ---
 
 # ruthless-editor: every sentence earns its place

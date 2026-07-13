@@ -1,6 +1,6 @@
 ---
 name: effort-scaling
-description: Use at the start of any task and whenever choosing how many probes, searches, or tool calls to spend - answering a question, investigating code, researching, debugging. Matches depth to task size: trivial asks get trivial effort, deep tasks get a plan and sustained effort, independent lookups run in parallel. Do NOT use it to justify skipping verification the task actually needs - cheap is not the goal, calibrated is.
+description: "Use at the start of any task and whenever choosing how many probes, searches, or tool calls to spend - answering a question, investigating code, researching, debugging. Matches depth to task size: trivial asks get trivial effort, deep tasks get a plan and sustained effort, independent lookups run in parallel. Do NOT use it to justify skipping verification the task actually needs - cheap is not the goal, calibrated is."
 ---
 
 # effort-scaling: spend effort where the task is, not where the habit is

@@ -1,6 +1,6 @@
 ---
 name: jina-reader
-description: Fetch a webpage as clean, structured Markdown via the jina.ai reader (r.jina.ai) instead of raw HTML — use whenever you need to read web content and want to save tokens, or when a normal fetch is blocked (HTTP 403/401), returns messy/boilerplate HTML, or the page is JavaScript-rendered (SPA, docs sites, wikis like grokipedia/notion/medium). Triggers: "fetch this page", "read this URL", "summarize this article/webpage", "get the docs at <url>", or any WebFetch that returned 403/garbled HTML.
+description: "Fetch a webpage as clean, structured Markdown via the jina.ai reader (r.jina.ai) instead of raw HTML — use whenever you need to read web content and want to save tokens, or when a normal fetch is blocked (HTTP 403/401), returns messy/boilerplate HTML, or the page is JavaScript-rendered (SPA, docs sites, wikis like grokipedia/notion/medium). Triggers: \"fetch this page\", \"read this URL\", \"summarize this article/webpage\", \"get the docs at <url>\", or any WebFetch that returned 403/garbled HTML."
 ---
 
 # jina.ai reader — clean Markdown from any URL

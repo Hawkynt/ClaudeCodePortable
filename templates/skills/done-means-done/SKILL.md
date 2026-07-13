@@ -1,6 +1,6 @@
 ---
 name: done-means-done
-description: Use immediately before declaring any task complete, closing any request, or presenting work as finished. Forces a completion audit against the ORIGINAL request - every explicit requirement ticked off as done-and-verified, everything skipped named plainly. Do NOT confuse it with correctness review (that is adversarial-verify's job): this catches what you DIDN'T do, not what you did wrong.
+description: "Use immediately before declaring any task complete, closing any request, or presenting work as finished. Forces a completion audit against the ORIGINAL request - every explicit requirement ticked off as done-and-verified, everything skipped named plainly. Do NOT confuse it with correctness review (that is adversarial-verify's job): this catches what you DIDN'T do, not what you did wrong."
 ---
 
 # done-means-done: audit against the ask, not against your memory of it

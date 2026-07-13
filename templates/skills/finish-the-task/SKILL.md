@@ -1,6 +1,6 @@
 ---
 name: finish-the-task
-description: Use during any multi-step task when you feel the pull to stop and ask "should I continue?", "want me to also do X?", or to hand back partial work. Forces completion of what was asked - ambiguities get a stated assumption and forward motion, not a stall. Do NOT use it to bulldoze past genuine forks the user must own, destructive actions, or a discovered scope change - those are the three legitimate stops.
+description: "Use during any multi-step task when you feel the pull to stop and ask \"should I continue?\", \"want me to also do X?\", or to hand back partial work. Forces completion of what was asked - ambiguities get a stated assumption and forward motion, not a stall. Do NOT use it to bulldoze past genuine forks the user must own, destructive actions, or a discovered scope change - those are the three legitimate stops."
 ---
 
 # finish-the-task: the next obvious step needs no permission

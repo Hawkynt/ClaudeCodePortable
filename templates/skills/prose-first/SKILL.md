@@ -1,6 +1,6 @@
 ---
 name: prose-first
-description: Use when composing conversational answers, explanations, documentation, reports, or summaries - the places where formatting tends to metastasize. Enforces the minimum-formatting rule - prose by default, bullets/headers/bold only when the content genuinely demands them - plus the one-question rule and the no-padding rules. Do NOT apply to inherently structured output - code, JSON, tables, checklists the user asked for, finding-led reviews (code review, audits, incident reports) where itemization and severity order ARE the content, or any format the user explicitly requested.
+description: "Use when composing conversational answers, explanations, documentation, reports, or summaries - the places where formatting tends to metastasize. Enforces the minimum-formatting rule - prose by default, bullets/headers/bold only when the content genuinely demands them - plus the one-question rule and the no-padding rules. Do NOT apply to inherently structured output - code, JSON, tables, checklists the user asked for, finding-led reviews (code review, audits, incident reports) where itemization and severity order ARE the content, or any format the user explicitly requested."
 ---
 
 # prose-first: formatting is a cost, not a decoration

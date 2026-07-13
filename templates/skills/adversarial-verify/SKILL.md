@@ -1,6 +1,6 @@
 ---
 name: adversarial-verify
-description: Use after completing any substantive piece of work (code change, analysis, document, configuration, answer to a hard question) and BEFORE presenting it as done. Switches you from author to attacker - you try to refute your own work and only present it if it survives. Do not skip because the work "looks clean"; plausible-but-wrong is the exact failure this kills.
+description: "Use after completing any substantive piece of work (code change, analysis, document, configuration, answer to a hard question) and BEFORE presenting it as done. Switches you from author to attacker - you try to refute your own work and only present it if it survives. Do not skip because the work \"looks clean\"; plausible-but-wrong is the exact failure this kills."
 ---
 
 # adversarial-verify: refute it before you present it

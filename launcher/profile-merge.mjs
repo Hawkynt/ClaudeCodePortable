@@ -26,12 +26,18 @@ function writeJsonPretty(file, obj) {
     fs.writeFileSync(file, JSON.stringify(obj, null, 2) + '\n');
 }
 
-/** Parse `description:` out of a SKILL.md frontmatter block. */
+/** Parse `description:` out of a SKILL.md frontmatter block. Descriptions
+ *  are YAML double-quoted (strict parsers reject bare colons) - unquote. */
 function skillDescription(skillMd) {
     try {
         const txt = fs.readFileSync(skillMd, 'utf8');
         const m = /^---\r?\n[\s\S]*?^description:\s*(.+?)\r?\n[\s\S]*?^---/m.exec(txt);
-        return m ? m[1].trim() : '';
+        if (!m) return '';
+        const raw = m[1].trim();
+        if (raw.startsWith('"')) {
+            try { return JSON.parse(raw); } catch { /* fall through */ }
+        }
+        return raw;
     } catch { return ''; }
 }
 

@@ -1,6 +1,6 @@
 ---
 name: scope-fence
-description: Use on every task where you will modify existing work - code, documents, configs. Fences your changes to exactly what was asked. Adjacent problems get FLAGGED, never silently fixed. Keeps diffs minimal and reviewable. Do not use it to refuse legitimate follow-through the task actually requires.
+description: "Use on every task where you will modify existing work - code, documents, configs. Fences your changes to exactly what was asked. Adjacent problems get FLAGGED, never silently fixed. Keeps diffs minimal and reviewable. Do not use it to refuse legitimate follow-through the task actually requires."
 ---
 
 # scope-fence: do what was asked, flag what you found

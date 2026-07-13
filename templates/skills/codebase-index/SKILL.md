@@ -1,6 +1,6 @@
 ---
 name: codebase-index
-description: Use when starting work in a LARGE or UNFAMILIAR codebase, when a repo already contains an INDEX.md, or when repeatedly grepping for where something is defined. Generates and consults INDEX.md - a symbol locator (namespaces, types, enums, constructors, functions, methods with parameters, globals/statics, one-line descriptions, all anchored to file:line) built by scripts/index_codebase.py - so lookups become one grep instead of N searches. Once a repo has an index, regenerate it whenever symbols are added, renamed, moved, or deleted. Do not use on small projects a single Glob already covers, and do not treat it as a reason to index every repo you touch.
+description: "Use when starting work in a LARGE or UNFAMILIAR codebase, when a repo already contains an INDEX.md, or when repeatedly grepping for where something is defined. Generates and consults INDEX.md - a symbol locator (namespaces, types, enums, constructors, functions, methods with parameters, globals/statics, one-line descriptions, all anchored to file:line) built by scripts/index_codebase.py - so lookups become one grep instead of N searches. Once a repo has an index, regenerate it whenever symbols are added, renamed, moved, or deleted. Do not use on small projects a single Glob already covers, and do not treat it as a reason to index every repo you touch."
 ---
 
 # codebase-index: build the map once, grep it forever

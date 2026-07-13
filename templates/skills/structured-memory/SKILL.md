@@ -1,6 +1,6 @@
 ---
 name: structured-memory
-description: Use whenever persistent agent memory is read, written, or has grown past its budget - the first time memory is consulted in a session, whenever something worth remembering appears, and whenever MEMORY.md or a topic file exceeds its size budget. Implements a two-tier structure (slim MEMORY.md index linking memory-*.md topic files) with self-compaction rules so memory never overflows the context window yet never silently loses important information.
+description: "Use whenever persistent agent memory is read, written, or has grown past its budget - the first time memory is consulted in a session, whenever something worth remembering appears, and whenever MEMORY.md or a topic file exceeds its size budget. Implements a two-tier structure (slim MEMORY.md index linking memory-*.md topic files) with self-compaction rules so memory never overflows the context window yet never silently loses important information."
 ---
 
 # structured-memory: an index that stays small, topics that stay deep

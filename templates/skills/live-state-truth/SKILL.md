@@ -1,6 +1,6 @@
 ---
 name: live-state-truth
-description: Use whenever you are about to assert or act on a fact about a system - what a function does, what a config is set to, what is deployed, what a table contains, what a dependency's version is. Forces verification against the LIVE system before the assertion. Docs, comments, READMEs, and your own memory are treated as stale by default.
+description: "Use whenever you are about to assert or act on a fact about a system - what a function does, what a config is set to, what is deployed, what a table contains, what a dependency's version is. Forces verification against the LIVE system before the assertion. Docs, comments, READMEs, and your own memory are treated as stale by default."
 ---
 
 # live-state-truth: the system is the source of truth, not its description

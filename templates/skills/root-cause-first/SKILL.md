@@ -1,6 +1,6 @@
 ---
 name: root-cause-first
-description: Use whenever something is broken and you are about to fix it - a failing test, a bug report, a crash, wrong output, flaky behavior. Forces reproduce -> isolate -> fix the cause -> re-run the repro, and bans fixes without a failing observation. Do NOT use for building new features or for changes where nothing is broken - it governs repair, not construction.
+description: "Use whenever something is broken and you are about to fix it - a failing test, a bug report, a crash, wrong output, flaky behavior. Forces reproduce -> isolate -> fix the cause -> re-run the repro, and bans fixes without a failing observation. Do NOT use for building new features or for changes where nothing is broken - it governs repair, not construction."
 ---
 
 # root-cause-first: no fix without a failing observation

@@ -1,6 +1,6 @@
 ---
 name: plan-gate
-description: Use before starting ANY task that involves more than one edit, file, or step - coding, refactoring, writing, configuration, migrations. Forces a short written plan (goal, unknowns, success criteria, step order) BEFORE the first change. Do not use for single-line fixes or pure questions.
+description: "Use before starting ANY task that involves more than one edit, file, or step - coding, refactoring, writing, configuration, migrations. Forces a short written plan (goal, unknowns, success criteria, step order) BEFORE the first change. Do not use for single-line fixes or pure questions."
 ---
 
 # plan-gate: no edits until the plan exists

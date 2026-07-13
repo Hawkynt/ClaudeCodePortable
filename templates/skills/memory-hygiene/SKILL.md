@@ -1,6 +1,6 @@
 ---
 name: memory-hygiene
-description: Use when writing to or reading from any persistent memory an agent keeps across sessions - CLAUDE.md, memory files, notes, project docs meant for future sessions. Governs WHAT deserves persisting, HOW to write it so it survives time, and the recall rule: verify remembered facts against live state before acting on them. Use it also when a session starts by loading old memory.
+description: "Use when writing to or reading from any persistent memory an agent keeps across sessions - CLAUDE.md, memory files, notes, project docs meant for future sessions. Governs WHAT deserves persisting, HOW to write it so it survives time, and the recall rule: verify remembered facts against live state before acting on them. Use it also when a session starts by loading old memory."
 ---
 
 # memory-hygiene: memory is a claim about the past, not a fact about the present
