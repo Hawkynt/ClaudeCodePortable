@@ -187,6 +187,22 @@ export function profileDataDir(profileName) {
 export function claudeConfigDir(profileName) {
     return path.join(profileDataDir(profileName), 'claude-config');
 }
+/** Sibling-tool config homes, one per tool per profile (same pattern as
+ *  claude-config: the tool's HOME-relocation env var points here). */
+export function codexConfigDir(profileName) {
+    return path.join(profileDataDir(profileName), 'codex-config');
+}
+export function copilotConfigDir(profileName) {
+    return path.join(profileDataDir(profileName), 'copilot-config');
+}
+export function copilotCacheDir(profileName) {
+    return path.join(profileDataDir(profileName), 'copilot-cache');
+}
+/** Antigravity has no relocation var; its ~/.gemini lands inside the profile
+ *  because the launcher redirects HOME/USERPROFILE to profileDataDir. */
+export function geminiHomeDir(profileName) {
+    return path.join(profileDataDir(profileName), '.gemini');
+}
 /** Launcher-owned metadata tree (pin state, friendly labels). Lives
  *  outside claude-config/ so Claude never sees our sidecar files. */
 export function sessionMetaDir(profileName) {

@@ -35,11 +35,12 @@ export async function runProfileMenu({
     exclude = null,
     readOnly = false,
     cwd = null,
+    tool = 'claude',       // only this tool's profiles are listed/created
 } = {}) {
     const keyPool = makeKeyPool();
 
     while (true) {
-        const profiles = loadSortedProfiles({ exclude });
+        const profiles = loadSortedProfiles({ exclude, tool });
 
         if (profiles.length === 0) {
             if (readOnly) return { action: 'abort' };
@@ -57,7 +58,7 @@ export async function runProfileMenu({
                     await sleep(600);
                     continue;
                 }
-                try { createProfile(name); } catch (e) {
+                try { createProfile(name, { tool }); } catch (e) {
                     console.log(color('red', e.message));
                     await sleep(600);
                 }
@@ -142,10 +143,13 @@ export async function runProfileMenu({
                     console.log(color('red', '  profile already exists.'));
                 } else {
                     try {
-                        createProfile(name);
+                        createProfile(name, { tool });
                         console.log(color('darkgreen', `  created profile '${name}'.`));
                         if (isShellRegistered()) { installShell(); console.log(color('darkgreen', '  Explorer menu refreshed.')); }
-                        if (await promptYesNo('  seed it with template skills / config from another profile?')) {
+                        // The merge wizard handles Claude-side config; sibling
+                        // tools seed skills via their launcher's --seed-skills.
+                        if (tool === 'claude'
+                            && await promptYesNo('  seed it with template skills / config from another profile?')) {
                             await runMergeWizard(name);
                         }
                     } catch (e) {

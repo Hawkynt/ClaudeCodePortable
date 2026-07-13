@@ -17,7 +17,9 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
  * null. Excludes the target itself.
  */
 async function pickSourceProfile(targetProfile) {
-    const profiles = loadSortedProfiles({ exclude: targetProfile });
+    // Only Claude profiles carry mergeable Claude config; sibling-tool
+    // profiles would offer nothing (and must not leak their logins here).
+    const profiles = loadSortedProfiles({ exclude: targetProfile, tool: 'claude' });
     if (profiles.length === 0) return null;
 
     clearScreen();

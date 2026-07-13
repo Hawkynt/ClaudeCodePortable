@@ -22,7 +22,8 @@ import {
 import { c, color, banner, getVersionLine } from './ui.mjs';
 import { parseArgs } from './args.mjs';
 import {
-    listProfileNames, createProfile, isValidProfileName, profilePath,
+    listProfileNames, createProfile, isValidProfileName, profilePath, profileTool,
+    ensureProfileMarkers,
 } from './profiles.mjs';
 import {
     ensureAllRuntimes, ensureClaudeCode,
@@ -175,7 +176,9 @@ function handleListProfiles() {
         return;
     }
     console.log('Profiles under ' + PROFILES_ROOT + ':');
-    for (const name of listProfileNames()) console.log('  ' + name);
+    for (const name of listProfileNames()) {
+        console.log('  ' + name + '  [' + profileTool(name) + ']');
+    }
 }
 
 function handleNewProfile(name) {
@@ -265,16 +268,20 @@ function resolveProfileForDoctor(args) {
     // else literal 'default'. We never launch a picker for --doctor.
     if (args.profile) return args.profile;
     if (process.env.CLAUDE_PROFILE) return process.env.CLAUDE_PROFILE;
-    const names = listProfileNames();
+    const names = listProfileNames({ tool: 'claude' });
     if (names.length === 1) return names[0];
     if (names.includes('default')) return 'default';
     return names[0] || 'default';
 }
 
 async function resolveProfile(args) {
+    ensureProfileMarkers();   // legacy profiles become explicitly claude-owned
+
     if (args.profile) return args.profile;
 
-    const names = listProfileNames();
+    // Claude launcher: only Claude-owned profiles (sibling tools mark theirs
+    // via the .tool file and never appear here).
+    const names = listProfileNames({ tool: 'claude' });
     if (names.length === 0) {
         createProfile('default');
         return 'default';
@@ -283,7 +290,7 @@ async function resolveProfile(args) {
 
     if (args.skipMenu) return names.includes('default') ? 'default' : names[0];
 
-    // Picker
+    // Picker (tool defaults to 'claude' in runProfileMenu)
     const { runProfileMenu } = await import('./profile-menu.mjs');
     const r = await runProfileMenu({ cwd: process.cwd() });
     if (r.action === 'pick') return r.profile;
