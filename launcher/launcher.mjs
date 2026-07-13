@@ -30,6 +30,7 @@ import {
 } from './install.mjs';
 import { runSessionMenu }  from './session-menu.mjs';
 import { runProfileMenu }  from './profile-menu.mjs';
+import { setupPath, setPrivacyEnv, baseProfileEnv } from './tool-launcher-core.mjs';
 import {
     installShell, uninstallShell, isShellRegistered,
 } from './registry.mjs';
@@ -297,35 +298,6 @@ async function resolveProfile(args) {
     return null;
 }
 
-function setupPath() {
-    const bins = [];
-    bins.push(nodeBinDir());
-    if (IS_WIN) {
-        // On Windows: MinGit cmd comes FIRST so `git` resolves to the standalone
-        // version, then PortableGit bin (bash) and usr/bin (bundled coreutils/perl),
-        // then python, then pwsh.
-        bins.push(path.join(GIT_DIR, 'cmd'));
-        bins.push(path.join(BASH_DIR, 'bin'));
-        bins.push(path.join(BASH_DIR, 'usr', 'bin'));
-        bins.push(PYTHON_DIR);
-        bins.push(path.join(PYTHON_DIR, 'Scripts'));
-        bins.push(PWSH_DIR);
-    } else {
-        // Linux/macOS: relocatable-perl first, python-build-standalone bin, pwsh
-        bins.push(path.join(PERL_DIR, 'bin'));
-        bins.push(path.join(PYTHON_DIR, 'python', 'bin'));
-        bins.push(PWSH_DIR);
-    }
-    const sep = IS_WIN ? ';' : ':';
-    process.env.PATH = bins.filter(Boolean).join(sep) + sep + (process.env.PATH || '');
-}
-
-function setPrivacyEnv() {
-    process.env.DISABLE_TELEMETRY        = '1';
-    process.env.DISABLE_ERROR_REPORTING  = '1';
-    process.env.DISABLE_BUG_COMMAND      = '1';
-}
-
 /** Pre-compute and export the compact runtime version line for child menus. */
 function setVersionLine() {
     // We piggyback on ui.mjs's probing logic.
@@ -335,14 +307,12 @@ function setVersionLine() {
 }
 
 function profileEnv(profileName) {
+    // Shared base (HOME + npm cache/prefix + npm-global on PATH) plus the
+    // Claude-specific vars the CLI reads.
     return {
-        CLAUDE_PROFILE:      profileName,
-        CLAUDE_CONFIG_DIR:   claudeConfigDir(profileName),
-        HOME:                profileDataDir(profileName),
-        npm_config_cache:    npmCacheDir(profileName),
-        npm_config_prefix:   npmGlobalDir(profileName),
-        // Prepend npm-global to PATH so claude binary resolves
-        PATH: (IS_WIN ? npmGlobalDir(profileName) + ';' : path.join(npmGlobalDir(profileName), 'bin') + ':') + process.env.PATH,
+        ...baseProfileEnv(profileName),
+        CLAUDE_PROFILE:    profileName,
+        CLAUDE_CONFIG_DIR: claudeConfigDir(profileName),
     };
 }
 
