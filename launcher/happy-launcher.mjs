@@ -11,22 +11,20 @@
 
 import fs   from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 
 import {
-    IS_WIN, PORTABLE_ROOT, PROFILES_ROOT, APP_ROOT,
-    GIT_DIR, BASH_DIR, PYTHON_DIR, PWSH_DIR, PERL_DIR,
-    nodeBinDir, claudeConfigDir, npmCacheDir, npmGlobalDir,
-    profileDataDir,
+    PROFILES_ROOT, APP_ROOT,
+    claudeConfigDir, npmCacheDir, npmGlobalDir,
 } from './paths.mjs';
 import { color, getVersionLine } from './ui.mjs';
 import { parseArgs } from './args.mjs';
-import {
-    listProfileNames, createProfile, profilePath,
-} from './profiles.mjs';
+import { profilePath } from './profiles.mjs';
 import { ensureAllRuntimes, ensureClaudeCode } from './install.mjs';
-import { runProfileMenu } from './profile-menu.mjs';
 import { runSessionMenu } from './session-menu.mjs';
+import {
+    resolveProfile, setupPath, setPrivacyEnv, baseProfileEnv,
+    ensureNpmTool, spawnTool,
+} from './tool-launcher-core.mjs';
 
 (async () => {
     const args = parseArgs(process.argv.slice(2));
@@ -40,7 +38,7 @@ import { runSessionMenu } from './session-menu.mjs';
     setupPath();
     setPrivacyEnv();
 
-    let profileName = await resolveProfile(args);
+    let profileName = await resolveProfile(args, { menuTitle: 'Select Happy (remote) profile' });
     if (!profileName) process.exit(0);
 
     while (true) {
@@ -49,7 +47,10 @@ import { runSessionMenu } from './session-menu.mjs';
         fs.mkdirSync(npmGlobalDir(profileName),    { recursive: true });
         fs.mkdirSync(claudeConfigDir(profileName), { recursive: true });
 
-        Object.assign(process.env, profileEnv(profileName));
+        Object.assign(process.env, baseProfileEnv(profileName), {
+            CLAUDE_PROFILE:    profileName,
+            CLAUDE_CONFIG_DIR: claudeConfigDir(profileName),
+        });
 
         try { ensureClaudeCode(profileName); }
         catch (e) { console.error(color('red', e.message)); process.exit(1); }
@@ -61,7 +62,7 @@ import { runSessionMenu } from './session-menu.mjs';
         try { ensureClaudeCliShim(profileName); }
         catch (e) { console.error(color('red', e.message)); process.exit(1); }
 
-        try { ensureHappyCoder(profileName); }
+        try { ensureNpmTool(profileName, 'happy-coder', 'happy', { label: 'happy-coder' }); }
         catch (e) { console.error(color('red', e.message)); process.exit(1); }
 
         printVersionBanner(profileName);
@@ -86,24 +87,11 @@ import { runSessionMenu } from './session-menu.mjs';
         if (sessionArgs.length) console.log('Session:          ' + sessionArgs.join(' '));
         console.log('');
 
-        // On Windows, npm-global installs CLIs as .cmd shims at the prefix root;
-        // Node 22 can't spawn .cmd without shell:true (CVE-2024-27980 fix). On
-        // Unix the bin is under <prefix>/bin and is directly executable.
-        const cmd     = IS_WIN ? 'happy.cmd' : 'happy';
         // happy-coder forwards unknown flags through to claude, so --continue /
         // --resume <id> / --dangerously-skip-permissions reach the underlying
         // session as intended.
-        const cmdArgs = ['--dangerously-skip-permissions', ...sessionArgs, ...args.forwarded];
-        const r = spawnSync(cmd, cmdArgs, {
-            stdio: 'inherit',
-            shell: IS_WIN,
-            windowsHide: false,
-        });
-        if (r.error) {
-            console.error(color('red', 'Failed to start Happy: ' + r.error.message));
-            process.exit(1);
-        }
-        process.exit(r.status ?? 0);
+        process.exit(spawnTool('happy',
+            ['--dangerously-skip-permissions', ...sessionArgs, ...args.forwarded]));
     }
 })().catch(e => {
     console.error(color('red', 'FATAL: ' + (e && e.stack || e)));
@@ -111,24 +99,8 @@ import { runSessionMenu } from './session-menu.mjs';
 });
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Happy-specific glue
 // ---------------------------------------------------------------------------
-async function resolveProfile(args) {
-    if (args.profile) return args.profile;
-
-    const names = listProfileNames();
-    if (names.length === 0) {
-        createProfile('default');
-        return 'default';
-    }
-    if (names.length === 1) return names[0];
-    if (args.skipMenu) return names.includes('default') ? 'default' : names[0];
-
-    const r = await runProfileMenu({ title: 'Select Happy (remote) profile' });
-    if (r.action === 'pick')  return r.profile;
-    return null;
-}
-
 function ensureClaudeCliShim(profileName) {
     const prefix = npmGlobalDir(profileName);
     // On Windows `npm root -g` returns <prefix>/node_modules; on Unix it's
@@ -153,76 +125,6 @@ function ensureClaudeCliShim(profileName) {
         if (existing === shim) return;
     } catch {}
     fs.writeFileSync(shimPath, shim);
-}
-
-function ensureHappyCoder(profileName) {
-    const prefix = npmGlobalDir(profileName);
-    const probe  = IS_WIN
-        ? path.join(prefix, 'happy.cmd')
-        : path.join(prefix, 'bin', 'happy');
-    if (fs.existsSync(probe)) return;
-
-    console.log(color('cyan', `Installing happy-coder into profile [${profileName}] ...`));
-    const env = {
-        ...process.env,
-        npm_config_cache:  npmCacheDir(profileName),
-        npm_config_prefix: prefix,
-    };
-    const nodeExe = path.join(nodeBinDir(), IS_WIN ? 'node.exe' : 'node');
-    const npmCli  = path.join(nodeBinDir(),
-        IS_WIN ? 'node_modules/npm/bin/npm-cli.js'
-               : '../lib/node_modules/npm/bin/npm-cli.js');
-    const r = spawnSync(nodeExe,
-        [npmCli, 'install', '-g', 'happy-coder@latest'],
-        { stdio: 'inherit', env, windowsHide: true });
-    if (r.status !== 0) {
-        const detail = r.error ? (r.error.code || r.error.message)
-                               : r.signal ? `signal ${r.signal}`
-                               : `exit ${r.status}`;
-        throw new Error(`Failed to install happy-coder (${detail}).`);
-    }
-    if (!fs.existsSync(probe)) {
-        throw new Error(`happy-coder installed but 'happy' binary not found at ${probe}`);
-    }
-}
-
-function setupPath() {
-    const bins = [];
-    bins.push(nodeBinDir());
-    if (IS_WIN) {
-        bins.push(path.join(GIT_DIR, 'cmd'));
-        bins.push(path.join(BASH_DIR, 'bin'));
-        bins.push(path.join(BASH_DIR, 'usr', 'bin'));
-        bins.push(PYTHON_DIR);
-        bins.push(path.join(PYTHON_DIR, 'Scripts'));
-        bins.push(PWSH_DIR);
-    } else {
-        bins.push(path.join(PERL_DIR, 'bin'));
-        bins.push(path.join(PYTHON_DIR, 'python', 'bin'));
-        bins.push(PWSH_DIR);
-    }
-    const sep = IS_WIN ? ';' : ':';
-    process.env.PATH = bins.filter(Boolean).join(sep) + sep + (process.env.PATH || '');
-}
-
-function setPrivacyEnv() {
-    process.env.DISABLE_TELEMETRY       = '1';
-    process.env.DISABLE_ERROR_REPORTING = '1';
-    process.env.DISABLE_BUG_COMMAND     = '1';
-}
-
-function profileEnv(profileName) {
-    return {
-        CLAUDE_PROFILE:    profileName,
-        CLAUDE_CONFIG_DIR: claudeConfigDir(profileName),
-        HOME:              profileDataDir(profileName),
-        npm_config_cache:  npmCacheDir(profileName),
-        npm_config_prefix: npmGlobalDir(profileName),
-        PATH: (IS_WIN
-            ? npmGlobalDir(profileName) + ';'
-            : path.join(npmGlobalDir(profileName), 'bin') + ':')
-            + process.env.PATH,
-    };
 }
 
 function printVersionBanner(profileName) {

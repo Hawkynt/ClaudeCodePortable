@@ -25,6 +25,7 @@ export function parseArgs(argv) {
         if (a === '--to')              { out.moveSession.to = next(); continue; }
         if (a === '--from')            { out.moveSession.from = next(); continue; }
         if (a === '--reinstall')       { out.mode = 'reinstall'; out.reinstallTarget = argv[i+1] && !argv[i+1].startsWith('-') ? next() : 'all'; continue; }
+        if (a === '--seed-skills')     { out.seedSkills = true; continue; }
 
         // skip-menu shortcuts
         if (a === '--new')             { out.skipMenu = true; continue; }
