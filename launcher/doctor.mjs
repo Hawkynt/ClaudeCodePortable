@@ -94,9 +94,17 @@ export function checkPython() {
             ? path.join(PYTHON_DIR, 'python.exe')
             : path.join(PYTHON_DIR, 'python', 'bin', 'python3');
         if (!fs.existsSync(exe)) return fail('python', `not installed (${exe})`);
+        // Both names must resolve or tools probing `python3` fall through to a
+        // system stub (Windows Store shim). ensurePythonAliases() fills this.
+        const alias = IS_WIN
+            ? path.join(PYTHON_DIR, 'python3.exe')
+            : path.join(PYTHON_DIR, 'python', 'bin', 'python');
+        if (!fs.existsSync(alias)) {
+            return warn('python', `missing ${path.basename(alias)} alias (tools probing that name may fail)`);
+        }
         const v = firstMatch(safeExec(exe, ['--version']), /([\d.]+)/);
         if (!v) return warn('python', 'could not parse --version');
-        if (v === PY_VERSION) return ok('python', `${v} (matches pin)`);
+        if (v === PY_VERSION) return ok('python', `${v} (python + python3 ok, matches pin)`);
         return warn('python', `${v} installed, pinned ${PY_VERSION}`);
     } catch (e) { return fail('python', e.message); }
 }

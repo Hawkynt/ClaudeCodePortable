@@ -165,48 +165,77 @@ export async function ensurePython() {
     if (!d) return;
     if (IS_WIN) {
         const pyExe = path.join(PYTHON_DIR, 'python.exe');
-        if (fs.existsSync(pyExe)) return;
+        if (!fs.existsSync(pyExe)) {
+            console.log(color('cyan', 'First-time setup: Python (embeddable + pip)'));
+            fs.mkdirSync(PYTHON_DIR, { recursive: true });
+            const zip = path.join(PYTHON_DIR, 'python-embed.zip');
+            await downloadVerified({ url: d.url, sha256: d.sha256, dest: zip, label: 'Python' });
+            extractZip(zip, PYTHON_DIR);
+            fs.rmSync(zip, { force: true });
 
-        console.log(color('cyan', 'First-time setup: Python (embeddable + pip)'));
-        fs.mkdirSync(PYTHON_DIR, { recursive: true });
-        const zip = path.join(PYTHON_DIR, 'python-embed.zip');
-        await downloadVerified({ url: d.url, sha256: d.sha256, dest: zip, label: 'Python' });
-        extractZip(zip, PYTHON_DIR);
-        fs.rmSync(zip, { force: true });
+            // Enable `import site` so pip works
+            const pth = fs.readdirSync(PYTHON_DIR).find(n => /^python\d+._pth$/.test(n));
+            if (pth) {
+                const p = path.join(PYTHON_DIR, pth);
+                const content = fs.readFileSync(p, 'utf8').replace(/#\s*import\s+site/, 'import site');
+                fs.writeFileSync(p, content);
+            }
 
-        // Enable `import site` so pip works
-        const pth = fs.readdirSync(PYTHON_DIR).find(n => /^python\d+._pth$/.test(n));
-        if (pth) {
-            const p = path.join(PYTHON_DIR, pth);
-            const content = fs.readFileSync(p, 'utf8').replace(/#\s*import\s+site/, 'import site');
-            fs.writeFileSync(p, content);
-        }
-
-        // Bootstrap pip
-        const scripts = path.join(PYTHON_DIR, 'Scripts');
-        const pipExe  = path.join(scripts, 'pip.exe');
-        if (!fs.existsSync(pipExe)) {
-            const getpip = path.join(PYTHON_DIR, 'get-pip.py');
-            try {
-                await download(PY_GETPIP_URL, getpip);
-                run(pyExe, [getpip, '--no-warn-script-location']);
-            } catch (e) {
-                console.log(color('yellow', '  WARN: failed to bootstrap pip: ' + e.message));
-            } finally {
-                fs.rmSync(getpip, { force: true });
+            // Bootstrap pip
+            const scripts = path.join(PYTHON_DIR, 'Scripts');
+            const pipExe  = path.join(scripts, 'pip.exe');
+            if (!fs.existsSync(pipExe)) {
+                const getpip = path.join(PYTHON_DIR, 'get-pip.py');
+                try {
+                    await download(PY_GETPIP_URL, getpip);
+                    run(pyExe, [getpip, '--no-warn-script-location']);
+                } catch (e) {
+                    console.log(color('yellow', '  WARN: failed to bootstrap pip: ' + e.message));
+                } finally {
+                    fs.rmSync(getpip, { force: true });
+                }
             }
         }
     } else {
         // python-build-standalone tarball contains a top-level 'python' dir
         const pyBin = path.join(PYTHON_DIR, 'python', 'bin', 'python3');
-        if (fs.existsSync(pyBin)) return;
+        if (!fs.existsSync(pyBin)) {
+            console.log(color('cyan', 'First-time setup: python-build-standalone'));
+            fs.mkdirSync(PYTHON_DIR, { recursive: true });
+            const archive = path.join(PYTHON_DIR, path.basename(d.url));
+            await downloadVerified({ url: d.url, sha256: d.sha256, dest: archive, label: 'Python' });
+            extractTar(archive, PYTHON_DIR);
+            fs.rmSync(archive, { force: true });
+        }
+    }
+    // Always (re)ensure the python/python3 aliases so tools probing either name
+    // resolve to OUR interpreter instead of falling through to a system stub
+    // (on Windows, `python3` otherwise hits the Microsoft Store shim). Cheap
+    // and idempotent - runs on every launch so pre-existing installs get it.
+    ensurePythonAliases();
+}
 
-        console.log(color('cyan', 'First-time setup: python-build-standalone'));
-        fs.mkdirSync(PYTHON_DIR, { recursive: true });
-        const archive = path.join(PYTHON_DIR, path.basename(d.url));
-        await downloadVerified({ url: d.url, sha256: d.sha256, dest: archive, label: 'Python' });
-        extractTar(archive, PYTHON_DIR);
-        fs.rmSync(archive, { force: true });
+/**
+ * Guarantee both `python` and `python3` executables exist in our Python dir.
+ * Windows embeddable ships only python.exe; python-build-standalone ships only
+ * python3. We copy/symlink to fill the missing name.
+ */
+export function ensurePythonAliases() {
+    try {
+        if (IS_WIN) {
+            const py  = path.join(PYTHON_DIR, 'python.exe');
+            const py3 = path.join(PYTHON_DIR, 'python3.exe');
+            if (fs.existsSync(py) && !fs.existsSync(py3)) fs.copyFileSync(py, py3);
+        } else {
+            const binDir = path.join(PYTHON_DIR, 'python', 'bin');
+            const py  = path.join(binDir, 'python');
+            const py3 = path.join(binDir, 'python3');
+            if (fs.existsSync(py3) && !fs.existsSync(py)) {
+                try { fs.symlinkSync('python3', py); } catch { fs.copyFileSync(py3, py); }
+            }
+        }
+    } catch (e) {
+        console.log(color('yellow', '  WARN: could not create python alias: ' + e.message));
     }
 }
 
