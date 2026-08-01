@@ -12,7 +12,7 @@ import {
     IS_WIN, IS_LINUX, IS_MAC,
     NODE_DIR, GIT_DIR, BASH_DIR, PERL_DIR, PYTHON_DIR, PWSH_DIR,
     NODE_DIST, GIT_DIST, BASH_DIST, PERL_DIST, PY_DIST, PWSH_DIST,
-    PY_GETPIP_URL, pickDist, nodeBinDir, npmCacheDir, npmGlobalDir,
+    PY_GETPIP_URL, pickDist, nodeBinDir, perlBinDir, npmCacheDir, npmGlobalDir,
     claudeCli, claudeConfigDir, lastUpdateFile,
 } from './paths.mjs';
 import { c, color } from './ui.mjs';
@@ -149,7 +149,7 @@ export async function ensurePerl() {
     if (IS_WIN) return; // use bundled perl from PortableGit on Windows
     const d = pickDist(PERL_DIST);
     if (!d) return;
-    const perlBin = path.join(PERL_DIR, 'bin', 'perl');
+    const perlBin = path.join(perlBinDir(), 'perl');
     if (fs.existsSync(perlBin)) return;
 
     console.log(color('cyan', 'First-time setup: relocatable-perl'));
@@ -158,6 +158,7 @@ export async function ensurePerl() {
     await downloadVerified({ url: d.url, sha256: d.sha256, dest: archive, label: 'relocatable-perl' });
     extractTar(archive, PERL_DIR);
     fs.rmSync(archive, { force: true });
+    if (!fs.existsSync(perlBin)) throw new Error('relocatable-perl extract incomplete.');
 }
 
 export async function ensurePython() {

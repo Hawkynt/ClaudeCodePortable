@@ -10,10 +10,10 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 import {
-    IS_WIN, NODE_DIR, GIT_DIR, BASH_DIR, PERL_DIR, PYTHON_DIR, PWSH_DIR,
+    IS_WIN, NODE_DIR, GIT_DIR, BASH_DIR, PYTHON_DIR, PWSH_DIR,
     NODE_VERSION, GIT_VERSION, PERL_VERSION, PY_VERSION, PWSH_VERSION,
     NODE_DIST, GIT_DIST, BASH_DIST, PERL_DIST, PY_DIST, PWSH_DIST,
-    pickDist, nodeBinDir, claudeCli, claudeConfigDir, profileDataDir,
+    pickDist, nodeBinDir, perlBinDir, claudeCli, claudeConfigDir, profileDataDir,
     PORTABLE_ROOT, LAUNCHER_BAT,
 } from './paths.mjs';
 import { c, color } from './ui.mjs';
@@ -80,7 +80,7 @@ export function checkPerl() {
             if (!v) return warn('perl', 'could not parse --version');
             return ok('perl', `${v} (bundled from PortableGit; no standalone pin)`);
         }
-        const exe = path.join(PERL_DIR, 'bin', 'perl');
+        const exe = path.join(perlBinDir(), 'perl');
         if (!fs.existsSync(exe)) return fail('perl', `not installed (${exe})`);
         const v = firstMatch(safeExec(exe, ['--version']), /\(v?([\d.]+)\)/);
         if (!v) return warn('perl', 'could not parse --version');

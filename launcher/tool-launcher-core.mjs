@@ -7,8 +7,8 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 import {
-    IS_WIN, GIT_DIR, BASH_DIR, PYTHON_DIR, PWSH_DIR, PERL_DIR,
-    nodeBinDir, npmCacheDir, npmGlobalDir, profileDataDir, lastUpdateFile,
+    IS_WIN, GIT_DIR, BASH_DIR, PYTHON_DIR, PWSH_DIR,
+    nodeBinDir, perlBinDir, npmCacheDir, npmGlobalDir, profileDataDir, lastUpdateFile,
 } from './paths.mjs';
 import { color } from './ui.mjs';
 import {
@@ -74,7 +74,7 @@ export function setupPath() {
         bins.push(path.join(PYTHON_DIR, 'Scripts'));
         bins.push(PWSH_DIR);
     } else {
-        bins.push(path.join(PERL_DIR, 'bin'));
+        bins.push(perlBinDir());
         bins.push(path.join(PYTHON_DIR, 'python', 'bin'));
         bins.push(PWSH_DIR);
     }

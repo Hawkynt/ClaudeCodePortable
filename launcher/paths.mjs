@@ -109,14 +109,17 @@ export const PERL_DIST = {
     'linux-x64': {
         url:  `https://github.com/skaji/relocatable-perl/releases/download/${PERL_VERSION}/perl-linux-amd64.tar.xz`,
         sha256: '2ae07b9b5e75c09f844810960c49eb731f6ca9a3dc839482dc473c7e6e4f1bdf',
+        subdir: 'perl-linux-amd64',                             // directory created after extraction
     },
     'darwin-arm64': {
         url:  `https://github.com/skaji/relocatable-perl/releases/download/${PERL_VERSION}/perl-darwin-arm64.tar.xz`,
         sha256: '9e217db92f6ad87092c9279c8c31c70a7435465cdfdb274dfed016f0878ab452',
+        subdir: 'perl-darwin-arm64',
     },
     'darwin-x64': {
         url:  `https://github.com/skaji/relocatable-perl/releases/download/${PERL_VERSION}/perl-darwin-amd64.tar.xz`,
         sha256: '8845f0e668fef0f84e713e2570bf4a3cb0446c3014c7162578fdf8c099473cd9',
+        subdir: 'perl-darwin-amd64',
     },
 };
 
@@ -225,6 +228,13 @@ export function nodeBinDir() {
     const d = pickDist(NODE_DIST);
     if (!d) return NODE_DIR;
     return path.join(NODE_DIR, d.bin);
+}
+
+/** relocatable-perl unpacks into a platform-named top-level dir inside PERL_DIR. */
+export function perlBinDir() {
+    const d = pickDist(PERL_DIST);
+    if (!d) return path.join(PERL_DIR, 'bin');
+    return path.join(PERL_DIR, d.subdir, 'bin');
 }
 
 /**
