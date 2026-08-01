@@ -2,6 +2,8 @@
 app/
 profiles/
 build/
+# KDE service-menu wrappers, written per tool+profile with absolute local paths
+launcher/kde-service-*.sh
 
 # Backups + editor droppings
 *.bak
