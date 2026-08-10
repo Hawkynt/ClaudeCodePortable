@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs   from 'node:fs';
 import path from 'node:path';
 import {
-    listMergeableItems, listTemplateSkills, mergeIntoProfile,
+    listMergeableItems, listTemplateSkills, mergeIntoProfile, statuslineAssets,
 } from '../launcher/profile-merge.mjs';
 import {
     PROFILES_ROOT, claudeConfigDir, TEMPLATE_SKILLS_DIR, TEMPLATE_CLAUDE_MD,
@@ -255,6 +255,139 @@ test('merge template CLAUDE.md + template skills in one call', (t) => {
     assert.ok(fs.existsSync(
         path.join(claudeConfigDir(dst), 'skills', 'done-means-done', 'SKILL.md')));
     assert.equal(r.merged.length, 2);
+});
+
+// ---------------------------------------------------------------------------
+// statuslineAssets: the setting decides which files matter
+// ---------------------------------------------------------------------------
+function statuslineProfile(t, command, files) {
+    const src = mkProfile(t, 'cpm-sl');
+    const cfg = claudeConfigDir(src);
+    for (const [rel, body] of Object.entries(files)) {
+        const f = path.join(cfg, rel);
+        fs.mkdirSync(path.dirname(f), { recursive: true });
+        fs.writeFileSync(f, body);
+    }
+    writeJson(src, 'settings.json', { statusLine: { type: 'command', command } });
+    return src;
+}
+
+test('statuslineAssets: finds the script the command points at, not statusline.py', (t) => {
+    const src = statuslineProfile(t, 'node "$CLAUDE_CONFIG_DIR/statusline.js"',
+        { 'statusline.js': '// js\n' });
+    assert.deepEqual(statuslineAssets(claudeConfigDir(src),
+        { type: 'command', command: 'node "$CLAUDE_CONFIG_DIR/statusline.js"' }),
+        ['statusline.js']);
+});
+
+test('statuslineAssets: interpreters, flags and outside paths are ignored', (t) => {
+    const src = statuslineProfile(t, 'x', { 'statusline.sh': '#!/bin/sh\n' });
+    const cfg = claudeConfigDir(src);
+    const assets = statuslineAssets(cfg, {
+        command: 'bash --norc /usr/local/bin/other.sh "$CLAUDE_CONFIG_DIR/statusline.sh"',
+    });
+    assert.deepEqual(assets, ['statusline.sh']);
+});
+
+test('statuslineAssets: understands ${VAR}, %VAR%, ~/.claude and bare relative paths', (t) => {
+    const src = statuslineProfile(t, 'x', { 'a.js': '1', 'b.js': '2', 'c.js': '3', 'd.js': '4' });
+    const cfg = claudeConfigDir(src);
+    assert.deepEqual(statuslineAssets(cfg, { command: 'node "${CLAUDE_CONFIG_DIR}/a.js"' }), ['a.js']);
+    assert.deepEqual(statuslineAssets(cfg, { command: 'node "%CLAUDE_CONFIG_DIR%\\b.js"' }), ['b.js']);
+    assert.deepEqual(statuslineAssets(cfg, { command: 'node ~/.claude/c.js' }), ['c.js']);
+    assert.deepEqual(statuslineAssets(cfg, { command: 'node d.js' }), ['d.js']);
+});
+
+test('statuslineAssets: paths escaping the config dir are refused', (t) => {
+    const src = statuslineProfile(t, 'x', { 'ok.js': '1' });
+    const cfg = claudeConfigDir(src);
+    // ../ok.js resolves into the profile dir, one level above the config dir.
+    assert.deepEqual(statuslineAssets(cfg, { command: 'node "$CLAUDE_CONFIG_DIR/../ok.js"' }), []);
+});
+
+test('statuslineAssets: no command / no statusLine yields nothing', () => {
+    assert.deepEqual(statuslineAssets('/nope', undefined), []);
+    assert.deepEqual(statuslineAssets('/nope', { type: 'command' }), []);
+    assert.deepEqual(statuslineAssets('/nope', { type: 'command', command: '   ' }), []);
+});
+
+// ---------------------------------------------------------------------------
+// mergeIntoProfile: statusline follows the setting
+// ---------------------------------------------------------------------------
+test('merge statusline: copies the js script the setting points at', (t) => {
+    const src = statuslineProfile(t, 'node "$CLAUDE_CONFIG_DIR/statusline.js"',
+        { 'statusline.js': '// the real one\n' });
+    const dst = mkProfile(t, 'cpm-dst');
+    const r = mergeIntoProfile(dst, { fromProfile: src, statusline: true });
+    assert.match(fs.readFileSync(
+        path.join(claudeConfigDir(dst), 'statusline.js'), 'utf8'), /the real one/);
+    assert.ok(!fs.existsSync(path.join(claudeConfigDir(dst), 'statusline.py')));
+    assert.equal(readJson(dst, 'settings.json').statusLine.command,
+        'node "$CLAUDE_CONFIG_DIR/statusline.js"');
+    assert.ok(r.merged.some(m => m.includes('statusline.js')));
+});
+
+test('merge statusline: an asset in a subfolder gets its folder created', (t) => {
+    const src = statuslineProfile(t, 'python "$CLAUDE_CONFIG_DIR/bin/status/main.py"',
+        { 'bin/status/main.py': '# nested\n' });
+    const dst = mkProfile(t, 'cpm-dst');
+    mergeIntoProfile(dst, { fromProfile: src, statusline: true });
+    const landed = path.join(claudeConfigDir(dst), 'bin', 'status', 'main.py');
+    assert.ok(fs.existsSync(landed), 'nested statusline script was not created');
+    assert.match(fs.readFileSync(landed, 'utf8'), /nested/);
+});
+
+test('merge statusline: every referenced file comes along', (t) => {
+    const src = statuslineProfile(t,
+        'python "$CLAUDE_CONFIG_DIR/sl/main.py" --theme "$CLAUDE_CONFIG_DIR/sl/theme.json"',
+        { 'sl/main.py': '# main\n', 'sl/theme.json': '{}\n' });
+    const dst = mkProfile(t, 'cpm-dst');
+    mergeIntoProfile(dst, { fromProfile: src, statusline: true });
+    assert.ok(fs.existsSync(path.join(claudeConfigDir(dst), 'sl', 'main.py')));
+    assert.ok(fs.existsSync(path.join(claudeConfigDir(dst), 'sl', 'theme.json')));
+});
+
+test('merge statusline: a target that already has the script is left alone', (t) => {
+    const src = statuslineProfile(t, 'node "$CLAUDE_CONFIG_DIR/statusline.js"',
+        { 'statusline.js': '// theirs\n' });
+    const dst = mkProfile(t, 'cpm-dst');
+    fs.writeFileSync(path.join(claudeConfigDir(dst), 'statusline.js'), '// MINE\n');
+    const r = mergeIntoProfile(dst, { fromProfile: src, statusline: true });
+    assert.match(fs.readFileSync(
+        path.join(claudeConfigDir(dst), 'statusline.js'), 'utf8'), /MINE/);
+    assert.ok(!fs.existsSync(path.join(claudeConfigDir(dst), 'settings.json')),
+        'settings key must not be written when the script was blocked');
+    assert.ok(r.skipped.some(m => m.includes('statusline')));
+});
+
+test('merge statusline: a script with no settings key still travels', (t) => {
+    const src = mkProfile(t, 'cpm-orphan');
+    fs.writeFileSync(path.join(claudeConfigDir(src), 'statusline.sh'), '# orphan\n');
+    assert.equal(listMergeableItems(src).statusline, true);
+    const dst = mkProfile(t, 'cpm-dst');
+    mergeIntoProfile(dst, { fromProfile: src, statusline: true });
+    assert.ok(fs.existsSync(path.join(claudeConfigDir(dst), 'statusline.sh')));
+});
+
+test('merge statusline: an absolute source path is re-anchored to the target', (t) => {
+    const src = mkProfile(t, 'cpm-abs');
+    const srcCfg = claudeConfigDir(src);
+    fs.writeFileSync(path.join(srcCfg, 'statusline.js'), '// abs\n');
+    writeJson(src, 'settings.json', {
+        statusLine: { type: 'command', command: `node "${path.join(srcCfg, 'statusline.js')}"` },
+    });
+    const dst = mkProfile(t, 'cpm-dst');
+    mergeIntoProfile(dst, { fromProfile: src, statusline: true });
+    assert.ok(fs.existsSync(path.join(claudeConfigDir(dst), 'statusline.js')));
+    const cmd = readJson(dst, 'settings.json').statusLine.command;
+    assert.ok(!cmd.includes(src), `target still points at the source profile: ${cmd}`);
+    assert.ok(cmd.includes('$CLAUDE_CONFIG_DIR'), cmd);
+});
+
+test('listMergeableItems: statuslineInfo reports the real assets', (t) => {
+    const src = statuslineProfile(t, 'node "$CLAUDE_CONFIG_DIR/ui/bar.js"',
+        { 'ui/bar.js': '// bar\n' });
+    assert.deepEqual(listMergeableItems(src).statuslineInfo.assets, ['ui/bar.js']);
 });
 
 // ---------------------------------------------------------------------------

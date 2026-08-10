@@ -41,6 +41,100 @@ function skillDescription(skillMd) {
     } catch { return ''; }
 }
 
+// ---------------------------------------------------------------------------
+// Status line: the setting decides which files matter, not a hardcoded name.
+// ---------------------------------------------------------------------------
+
+/** Split a shell-ish command into tokens, honoring "..." and '...' quoting. */
+function shellTokens(command) {
+    const out = [];
+    const re = /"([^"]*)"|'([^']*)'|(\S+)/g;
+    let m;
+    while ((m = re.exec(command)) !== null) out.push(m[1] ?? m[2] ?? m[3]);
+    return out;
+}
+
+/**
+ * Expand the variables Claude Code makes available in a statusLine command,
+ * plus `~`, to `cfgDir`-relative form. Unknown variables are left alone so the
+ * token simply fails to resolve to a file we own.
+ */
+function expandConfigVars(token, cfgDir) {
+    return token
+        .replace(/\$\{CLAUDE_CONFIG_DIR\}|\$CLAUDE_CONFIG_DIR|%CLAUDE_CONFIG_DIR%/g, cfgDir)
+        // `~/.claude/x` is how a non-portable install spells the same thing.
+        .replace(/^(~|\$\{?HOME\}?|%USERPROFILE%)[\\/]\.claude(?=[\\/]|$)/, cfgDir)
+        .replace(/^(~|\$\{?HOME\}?|%USERPROFILE%)(?=[\\/]|$)/, cfgDir);
+}
+
+/**
+ * Which files inside `cfgDir` does this statusLine command reference?
+ *
+ * Returns config-dir-relative POSIX paths (e.g. `statusline.js`,
+ * `bin/statusline/main.py`) for every token that resolves to something that
+ * exists under `cfgDir`. Tokens pointing outside the config dir (system
+ * interpreters, absolute paths elsewhere) are deliberately ignored - we can
+ * only carry along what lives in the profile.
+ */
+export function statuslineAssets(cfgDir, statusLine) {
+    const command = statusLine && typeof statusLine === 'object' ? statusLine.command : statusLine;
+    if (typeof command !== 'string' || !command.trim()) return [];
+
+    const root = path.resolve(cfgDir);
+    const seen = new Set();
+    for (const raw of shellTokens(command)) {
+        const token = expandConfigVars(raw, root);
+        // A bare `python` or a flag is not a path; require a separator or an
+        // extension before we even try to resolve it.
+        if (!/[\\/]/.test(token) && !/\.[A-Za-z0-9]+$/.test(token)) continue;
+        if (token.startsWith('-')) continue;
+        const abs = path.resolve(root, token);
+        const rel = path.relative(root, abs);
+        // Outside the config dir (or the config dir itself) - not ours to copy.
+        if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) continue;
+        if (!fs.existsSync(abs)) continue;
+        seen.add(rel.split(path.sep).join('/'));
+    }
+    return [...seen].sort();
+}
+
+/**
+ * Rewrite absolute references to the SOURCE config dir as $CLAUDE_CONFIG_DIR,
+ * so the copied setting points at the target's own copy of the script instead
+ * of reaching back into the profile it came from.
+ */
+function reanchorStatusline(statusLine, srcCfg) {
+    if (!statusLine || typeof statusLine !== 'object'
+        || typeof statusLine.command !== 'string') return statusLine;
+    const root = path.resolve(srcCfg);
+    const variants = new Set([root, root.split(path.sep).join('/'), root.split('/').join('\\')]);
+    let command = statusLine.command;
+    for (const v of variants) {
+        if (!v) continue;
+        command = command.split(v).join('$CLAUDE_CONFIG_DIR');
+    }
+    return command === statusLine.command ? statusLine : { ...statusLine, command };
+}
+
+/** Status line files a profile carries when settings.json says nothing. */
+const LEGACY_STATUSLINE_FILES = ['statusline.py', 'statusline.js', 'statusline.sh'];
+
+/**
+ * Everything needed to reproduce a profile's status line elsewhere:
+ * { statusLine: <settings value|null>, assets: [relative paths] }, or null
+ * when the profile has no status line at all.
+ */
+function readStatusline(cfgDir, settings) {
+    const value  = settings.statusLine;
+    const assets = statuslineAssets(cfgDir, value);
+    if (value !== undefined) return { statusLine: value, assets };
+    // No setting, but a script is sitting there: still worth carrying over so
+    // the user can wire it up (matches how this profile was likely set up).
+    const orphans = LEGACY_STATUSLINE_FILES.filter(f => fs.existsSync(path.join(cfgDir, f)));
+    if (!orphans.length) return null;
+    return { statusLine: undefined, assets: orphans };
+}
+
 /** List skill dirs (must contain SKILL.md) under a skills/ root. */
 function scanSkillsDir(root) {
     let entries;
@@ -68,7 +162,9 @@ export function listTemplateSkills() {
 /**
  * What a source profile offers for merging:
  *   { skills: [{name, description}], mcpServers: [names],
- *     statusline: bool, model: {model?, effortLevel?}|null, claudeMd: bool }
+ *     statusline: bool,
+ *     statuslineInfo: { statusLine, assets: [relative paths] } | null,
+ *     model: {model?, effortLevel?}|null, claudeMd: bool }
  */
 export function listMergeableItems(sourceProfileName) {
     const cfg = claudeConfigDir(sourceProfileName);
@@ -79,8 +175,7 @@ export function listMergeableItems(sourceProfileName) {
     const mcpServers = Object.keys((claudeJson && claudeJson.mcpServers) || {}).sort();
 
     const settings = readJsonSafe(path.join(cfg, 'settings.json')) || {};
-    const statusline = !!settings.statusLine
-                    || fs.existsSync(path.join(cfg, 'statusline.py'));
+    const statuslineInfo = readStatusline(cfg, settings);
 
     let model = null;
     for (const k of MODEL_KEYS) {
@@ -89,7 +184,11 @@ export function listMergeableItems(sourceProfileName) {
 
     const claudeMd = fs.existsSync(path.join(cfg, 'CLAUDE.md'));
 
-    return { skills, mcpServers, statusline, model, claudeMd };
+    return {
+        skills, mcpServers,
+        statusline: !!statuslineInfo, statuslineInfo,
+        model, claudeMd,
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -121,7 +220,8 @@ function copySkillDir(srcDir, dstSkillsRoot, name, merged, skipped, origin) {
  *   templateSkills:   array of skill names from templates/skills/
  *   templateClaudeMd: true -> copy templates/CLAUDE.md (skill gate)
  *   mcp:              true -> merge all mcpServers (target keys win)
- *   statusline:       true -> copy statusline.py + statusLine settings key
+ *   statusline:       true -> copy the files the statusLine command points at
+ *                             (any name, any subfolder) + the settings key
  *   model:            true -> copy model/effortLevel settings keys
  *   claudeMd:         true -> copy CLAUDE.md from the source profile
  *
@@ -194,27 +294,38 @@ export function mergeIntoProfile(targetProfileName, selections = {}) {
     }
 
     // -- status line -----------------------------------------------------------
+    // All-or-nothing on purpose: a statusLine key whose script did not come
+    // along (or a script with no key) is a broken status line, so if any part
+    // is already occupied in the target we touch nothing.
     if (statusline) {
-        const srcPy = path.join(srcCfg, 'statusline.py');
-        const dstPy = path.join(dstCfg, 'statusline.py');
         const srcSettings = readJsonSafe(path.join(srcCfg, 'settings.json')) || {};
         const dstFile = path.join(dstCfg, 'settings.json');
         const dstSettings = readJsonSafe(dstFile) || {};
+        const info = readStatusline(srcCfg, srcSettings);
 
-        const pyBlocked  = fs.existsSync(srcPy) && fs.existsSync(dstPy);
-        const keyBlocked = srcSettings.statusLine !== undefined
-                        && dstSettings.statusLine !== undefined;
-        if (pyBlocked || keyBlocked) {
-            skipped.push('statusline (already present in target)');
-        } else if (!fs.existsSync(srcPy) && srcSettings.statusLine === undefined) {
+        const blocked = info && (
+            dstSettings.statusLine !== undefined ||
+            info.assets.some(rel => fs.existsSync(path.join(dstCfg, rel))));
+
+        if (!info) {
             skipped.push('statusline (source has none)');
+        } else if (blocked) {
+            skipped.push('statusline (already present in target)');
         } else {
-            if (fs.existsSync(srcPy) && !fs.existsSync(dstPy)) fs.copyFileSync(srcPy, dstPy);
-            if (srcSettings.statusLine !== undefined && dstSettings.statusLine === undefined) {
-                dstSettings.statusLine = srcSettings.statusLine;
+            for (const rel of info.assets) {
+                const dst = path.join(dstCfg, rel);
+                // The command may point into a subfolder - create it, or the
+                // copied setting would reference a path that does not exist.
+                fs.mkdirSync(path.dirname(dst), { recursive: true });
+                fs.cpSync(path.join(srcCfg, rel), dst, { recursive: true });
+            }
+            if (info.statusLine !== undefined) {
+                dstSettings.statusLine = reanchorStatusline(info.statusLine, srcCfg);
                 writeJsonPretty(dstFile, dstSettings);
             }
-            merged.push('statusline');
+            merged.push(info.assets.length
+                ? `statusline (${info.assets.join(', ')})`
+                : 'statusline');
         }
     }
 

@@ -85,7 +85,11 @@ function buildItems(sourceProfile) {
             });
         }
         if (avail.statusline) {
-            items.push({ label: 'status line (statusline.py + setting)', pick: { kind: 'statusline' } });
+            const files = avail.statuslineInfo.assets.join(', ') || 'setting only';
+            items.push({
+                label: `status line (${files} + setting)`,
+                pick: { kind: 'statusline' },
+            });
         }
         if (avail.model) {
             const desc = Object.entries(avail.model).map(([k, v]) => `${k}=${v}`).join(', ');

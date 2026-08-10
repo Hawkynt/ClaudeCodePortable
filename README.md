@@ -212,8 +212,15 @@ existing profile. The wizard lets you multi-select what to pull in:
   Fable-style unconditional skill gate ("check for relevant skills BEFORE
   acting"), the highest-leverage fix for models that under-trigger skills.
 - **From another profile**: individual skills, MCP servers (`mcpServers` in
-  `.claude.json`), the status line (`statusline.py` + `statusLine` setting),
-  model configuration (`model`, `effortLevel`), and `CLAUDE.md`.
+  `.claude.json`), the status line, model configuration (`model`,
+  `effortLevel`), and `CLAUDE.md`.
+
+The status line is resolved from the `statusLine` setting rather than a
+hardcoded filename: whichever files the command points at are copied
+(`statusline.py`, `statusline.js`, a script in a subfolder, plus any extra
+files it references), subfolders are created in the target, and absolute paths
+into the source profile are rewritten to `$CLAUDE_CONFIG_DIR` so the setting
+works in its new home.
 
 Merging is strictly additive: anything already present in the target profile
 wins and is reported as skipped — a merge never overwrites a profile's own
