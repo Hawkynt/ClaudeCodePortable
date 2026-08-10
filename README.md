@@ -211,9 +211,10 @@ existing profile. The wizard lets you multi-select what to pull in:
 - **Template CLAUDE.md** (`templates/CLAUDE.md`) — global instructions with a
   Fable-style unconditional skill gate ("check for relevant skills BEFORE
   acting"), the highest-leverage fix for models that under-trigger skills.
-- **From another profile**: individual skills, MCP servers (`mcpServers` in
-  `.claude.json`), the status line, model configuration (`model`,
-  `effortLevel`), and `CLAUDE.md`.
+- **From another profile**, each item individually selectable: skills, one
+  checkbox per MCP server (`mcpServers` in `.claude.json`), one per
+  `settings.json` key (`model`, `effortLevel`, `theme`, `enabledPlugins`, …),
+  the status line, and `CLAUDE.md`.
 
 The status line is resolved from the `statusLine` setting rather than a
 hardcoded filename: whichever files the command points at are copied

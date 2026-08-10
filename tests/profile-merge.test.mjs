@@ -5,6 +5,7 @@ import path from 'node:path';
 import {
     listMergeableItems, listTemplateSkills, mergeIntoProfile, statuslineAssets,
 } from '../launcher/profile-merge.mjs';
+import { buildItems, toSelections } from '../launcher/merge-wizard.mjs';
 import {
     PROFILES_ROOT, claudeConfigDir, TEMPLATE_SKILLS_DIR, TEMPLATE_CLAUDE_MD,
 } from '../launcher/paths.mjs';
@@ -388,6 +389,91 @@ test('listMergeableItems: statuslineInfo reports the real assets', (t) => {
     const src = statuslineProfile(t, 'node "$CLAUDE_CONFIG_DIR/ui/bar.js"',
         { 'ui/bar.js': '// bar\n' });
     assert.deepEqual(listMergeableItems(src).statuslineInfo.assets, ['ui/bar.js']);
+});
+
+// ---------------------------------------------------------------------------
+// mergeIntoProfile: per-server MCP and per-key settings
+// ---------------------------------------------------------------------------
+test('merge mcp: an array selects individual servers', (t) => {
+    const src = mkProfile(t, 'cpm-src');
+    writeJson(src, '.claude.json', {
+        mcpServers: { jira: { command: 'a' }, ctx7: { command: 'b' }, pw: { command: 'c' } },
+    });
+    const dst = mkProfile(t, 'cpm-dst');
+    mergeIntoProfile(dst, { fromProfile: src, mcp: ['jira', 'pw'] });
+    assert.deepEqual(Object.keys(readJson(dst, '.claude.json').mcpServers).sort(), ['jira', 'pw']);
+});
+
+test('merge mcp: an unknown server name is reported, not thrown', (t) => {
+    const src = fullSource(t);
+    const dst = mkProfile(t, 'cpm-dst');
+    const r = mergeIntoProfile(dst, { fromProfile: src, mcp: ['nope'] });
+    assert.ok(r.skipped.some(m => m.includes('nope')));
+    assert.ok(!fs.existsSync(path.join(claudeConfigDir(dst), '.claude.json')));
+});
+
+test('merge settings: arbitrary keys can be picked one by one', (t) => {
+    const src = fullSource(t);
+    const dst = mkProfile(t, 'cpm-dst');
+    mergeIntoProfile(dst, { fromProfile: src, settings: ['skipDangerousModePermissionPrompt'] });
+    const s = readJson(dst, 'settings.json');
+    assert.equal(s.skipDangerousModePermissionPrompt, true);
+    assert.equal(s.model, undefined, 'unselected keys must not travel');
+});
+
+test('merge settings: statusLine is never carried by a plain key pick', (t) => {
+    const src = fullSource(t);
+    assert.equal(listMergeableItems(src).settings.statusLine, undefined);
+    const dst = mkProfile(t, 'cpm-dst');
+    mergeIntoProfile(dst, { fromProfile: src, settings: ['statusLine'] });
+    // The key may be copied on request, but no statusline.py comes with it -
+    // which is exactly why the wizard never offers it here.
+    assert.ok(!fs.existsSync(path.join(claudeConfigDir(dst), 'statusline.py')));
+});
+
+test('listMergeableItems: settings lists every key except statusLine', (t) => {
+    const src = fullSource(t);
+    assert.deepEqual(Object.keys(listMergeableItems(src).settings).sort(),
+        ['effortLevel', 'model', 'skipDangerousModePermissionPrompt']);
+});
+
+// ---------------------------------------------------------------------------
+// Wizard item list
+// ---------------------------------------------------------------------------
+test('buildItems: MCP servers and settings keys are individually selectable', (t) => {
+    const src = fullSource(t);
+    writeJson(src, '.claude.json', {
+        mcpServers: { jira: { command: 'a' }, ctx7: { command: 'b' } },
+    });
+    const items = buildItems(src);
+    const picks = items.filter(i => i.pick).map(i => i.pick);
+    assert.deepEqual(picks.filter(p => p.kind === 'mcpServer').map(p => p.name).sort(),
+        ['ctx7', 'jira']);
+    assert.deepEqual(picks.filter(p => p.kind === 'setting').map(p => p.name).sort(),
+        ['effortLevel', 'model', 'skipDangerousModePermissionPrompt']);
+    assert.equal(picks.filter(p => p.kind === 'statusline').length, 1);
+});
+
+test('buildItems + toSelections: checked items become a merge selection', (t) => {
+    const src = fullSource(t);
+    const items = buildItems(src);
+    const wanted = new Set(['mcpServer:jira', 'setting:model', 'statusline:']);
+    const indices = items
+        .map((it, i) => (it.pick && wanted.has(`${it.pick.kind}:${it.pick.name ?? ''}`) ? i : null))
+        .filter(i => i !== null);
+    const sel = toSelections(items, indices, src);
+    assert.deepEqual(sel.mcp, ['jira']);
+    assert.deepEqual(sel.settings, ['model']);
+    assert.equal(sel.statusline, true);
+
+    const dst = mkProfile(t, 'cpm-dst');
+    mergeIntoProfile(dst, { ...sel, fromProfile: src });
+    const s = readJson(dst, 'settings.json');
+    assert.equal(s.model, 'fable');
+    assert.equal(s.effortLevel, undefined, 'effortLevel was not selected');
+    assert.ok(s.statusLine);
+    assert.ok(fs.existsSync(path.join(claudeConfigDir(dst), 'statusline.py')));
+    assert.deepEqual(Object.keys(readJson(dst, '.claude.json').mcpServers), ['jira']);
 });
 
 // ---------------------------------------------------------------------------

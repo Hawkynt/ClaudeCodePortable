@@ -44,9 +44,9 @@ async function pickSourceProfile(targetProfile) {
 
 /**
  * Build the combined multi-select item list. Each entry carries a `pick`
- * descriptor consumed by applySelection().
+ * descriptor consumed by toSelections(). Exported for tests.
  */
-function buildItems(sourceProfile) {
+export function buildItems(sourceProfile) {
     const items = [];
 
     const templates = listTemplateSkills();
@@ -69,8 +69,9 @@ function buildItems(sourceProfile) {
 
     if (sourceProfile) {
         const avail = listMergeableItems(sourceProfile);
+        const settingKeys = Object.keys(avail.settings);
         const any = avail.skills.length || avail.mcpServers.length
-                 || avail.statusline || avail.model || avail.claudeMd;
+                 || avail.statusline || settingKeys.length || avail.claudeMd;
         if (any) items.push({ header: true, label: `From profile '${sourceProfile}':` });
         for (const s of avail.skills) {
             items.push({
@@ -78,11 +79,8 @@ function buildItems(sourceProfile) {
                 pick: { kind: 'skill', name: s.name },
             });
         }
-        if (avail.mcpServers.length) {
-            items.push({
-                label: `MCP servers (${avail.mcpServers.join(', ')})`,
-                pick: { kind: 'mcp' },
-            });
+        for (const name of avail.mcpServers) {
+            items.push({ label: `MCP server '${name}'`, pick: { kind: 'mcpServer', name } });
         }
         if (avail.statusline) {
             const files = avail.statuslineInfo.assets.join(', ') || 'setting only';
@@ -91,9 +89,11 @@ function buildItems(sourceProfile) {
                 pick: { kind: 'statusline' },
             });
         }
-        if (avail.model) {
-            const desc = Object.entries(avail.model).map(([k, v]) => `${k}=${v}`).join(', ');
-            items.push({ label: `model configuration (${desc})`, pick: { kind: 'model' } });
+        for (const k of settingKeys) {
+            items.push({
+                label: `setting ${k} = ${truncate(JSON.stringify(avail.settings[k]), 45)}`,
+                pick: { kind: 'setting', name: k },
+            });
         }
         if (avail.claudeMd) {
             items.push({ label: 'CLAUDE.md (global instructions)', pick: { kind: 'claudeMd' } });
@@ -103,16 +103,20 @@ function buildItems(sourceProfile) {
     return items;
 }
 
-function toSelections(items, indices, sourceProfile) {
+/** Turn checked item indices into a mergeIntoProfile() selection. Exported
+ *  for tests. */
+export function toSelections(items, indices, sourceProfile) {
     const sel = {
         fromProfile: sourceProfile, skills: [], templateSkills: [], templateClaudeMd: false,
-        mcp: false, statusline: false, model: false, claudeMd: false,
+        mcp: [], statusline: false, settings: [], claudeMd: false,
     };
     for (const i of indices) {
         const p = items[i].pick;
         if (!p) continue;
         if (p.kind === 'templateSkill') sel.templateSkills.push(p.name);
         else if (p.kind === 'skill')    sel.skills.push(p.name);
+        else if (p.kind === 'mcpServer') sel.mcp.push(p.name);
+        else if (p.kind === 'setting')  sel.settings.push(p.name);
         else                            sel[p.kind] = true;
     }
     return sel;

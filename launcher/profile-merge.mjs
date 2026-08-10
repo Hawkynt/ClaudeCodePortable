@@ -13,6 +13,10 @@ import { profilePath } from './profiles.mjs';
 // Keys of settings.json that constitute "model configuration".
 const MODEL_KEYS = ['model', 'effortLevel'];
 
+// settings.json keys that are NOT offered as plain key/value picks because a
+// dedicated merge item owns them (and copies their sidecar files).
+const SETTINGS_OWNED_ELSEWHERE = new Set(['statusLine']);
+
 // ---------------------------------------------------------------------------
 // Tolerant IO helpers - a corrupt file means "nothing there", never a crash.
 // ---------------------------------------------------------------------------
@@ -161,10 +165,13 @@ export function listTemplateSkills() {
 
 /**
  * What a source profile offers for merging:
- *   { skills: [{name, description}], mcpServers: [names],
- *     statusline: bool,
+ *   { skills:      [{name, description}],
+ *     mcpServers:  [names],
+ *     statusline:  bool,
  *     statuslineInfo: { statusLine, assets: [relative paths] } | null,
- *     model: {model?, effortLevel?}|null, claudeMd: bool }
+ *     settings:    { key: value }   (every settings.json key we can merge)
+ *     model:       {model?, effortLevel?} | null,
+ *     claudeMd:    bool }
  */
 export function listMergeableItems(sourceProfileName) {
     const cfg = claudeConfigDir(sourceProfileName);
@@ -174,12 +181,18 @@ export function listMergeableItems(sourceProfileName) {
     const claudeJson = readJsonSafe(path.join(cfg, '.claude.json'));
     const mcpServers = Object.keys((claudeJson && claudeJson.mcpServers) || {}).sort();
 
-    const settings = readJsonSafe(path.join(cfg, 'settings.json')) || {};
-    const statuslineInfo = readStatusline(cfg, settings);
+    const settingsJson = readJsonSafe(path.join(cfg, 'settings.json')) || {};
+    const statuslineInfo = readStatusline(cfg, settingsJson);
+
+    const settings = {};
+    for (const k of Object.keys(settingsJson).sort()) {
+        if (SETTINGS_OWNED_ELSEWHERE.has(k)) continue;
+        settings[k] = settingsJson[k];
+    }
 
     let model = null;
     for (const k of MODEL_KEYS) {
-        if (settings[k] !== undefined) model = { ...(model || {}), [k]: settings[k] };
+        if (settingsJson[k] !== undefined) model = { ...(model || {}), [k]: settingsJson[k] };
     }
 
     const claudeMd = fs.existsSync(path.join(cfg, 'CLAUDE.md'));
@@ -187,7 +200,7 @@ export function listMergeableItems(sourceProfileName) {
     return {
         skills, mcpServers,
         statusline: !!statuslineInfo, statuslineInfo,
-        model, claudeMd,
+        settings, model, claudeMd,
     };
 }
 
@@ -219,11 +232,14 @@ function copySkillDir(srcDir, dstSkillsRoot, name, merged, skipped, origin) {
  *   skills:           array of skill names from the source profile
  *   templateSkills:   array of skill names from templates/skills/
  *   templateClaudeMd: true -> copy templates/CLAUDE.md (skill gate)
- *   mcp:              true -> merge all mcpServers (target keys win)
+ *   mcp:              true -> all mcpServers, or an array of server names
  *   statusline:       true -> copy the files the statusLine command points at
  *                             (any name, any subfolder) + the settings key
- *   model:            true -> copy model/effortLevel settings keys
+ *   settings:         array of settings.json keys to copy
+ *   model:            true -> shorthand for settings: ['model','effortLevel']
  *   claudeMd:         true -> copy CLAUDE.md from the source profile
+ *
+ * Target values always win: an existing key/file is reported in `skipped`.
  *
  * Returns { merged: [labels], skipped: [labels] }. Throws only on a missing
  * source/target profile - individual absent items are reported, not thrown.
@@ -231,8 +247,11 @@ function copySkillDir(srcDir, dstSkillsRoot, name, merged, skipped, origin) {
 export function mergeIntoProfile(targetProfileName, selections = {}) {
     const {
         fromProfile = null, skills = [], templateSkills = [], templateClaudeMd = false,
-        mcp = false, statusline = false, model = false, claudeMd = false,
+        mcp = false, statusline = false, settings = [], model = false, claudeMd = false,
     } = selections;
+
+    // `model: true` predates per-key selection; fold it into `settings`.
+    const settingsKeys = [...new Set([...settings, ...(model ? MODEL_KEYS : [])])];
 
     const merged = [], skipped = [];
     const dstCfg = claudeConfigDir(targetProfileName);
@@ -241,7 +260,9 @@ export function mergeIntoProfile(targetProfileName, selections = {}) {
     }
     fs.mkdirSync(dstCfg, { recursive: true });
 
-    const wantsSource = skills.length || mcp || statusline || model || claudeMd;
+    const wantsMcp    = mcp === true || (Array.isArray(mcp) && mcp.length > 0);
+    const wantsSource = skills.length || wantsMcp || statusline
+                     || settingsKeys.length || claudeMd;
     let srcCfg = null;
     if (wantsSource) {
         if (!fromProfile) throw new Error('fromProfile is required for the selected items');
@@ -272,11 +293,18 @@ export function mergeIntoProfile(targetProfileName, selections = {}) {
     }
 
     // -- MCP servers ---------------------------------------------------------
-    if (mcp) {
+    if (wantsMcp) {
         const srcServers = (readJsonSafe(path.join(srcCfg, '.claude.json')) || {}).mcpServers || {};
-        const names = Object.keys(srcServers);
+        // `mcp: true` means every server; an array narrows it to those names.
+        const names = mcp === true
+            ? Object.keys(srcServers)
+            : mcp.filter(n => {
+                if (srcServers[n] !== undefined) return true;
+                skipped.push(`MCP server '${n}' (not found in source)`);
+                return false;
+            });
         if (!names.length) {
-            skipped.push('MCP servers (source has none)');
+            if (mcp === true) skipped.push('MCP servers (source has none)');
         } else {
             const dstFile = path.join(dstCfg, '.claude.json');
             const dstJson = readJsonSafe(dstFile) || {};
@@ -329,13 +357,13 @@ export function mergeIntoProfile(targetProfileName, selections = {}) {
         }
     }
 
-    // -- model configuration ------------------------------------------------
-    if (model) {
+    // -- settings keys ---------------------------------------------------------
+    if (settingsKeys.length) {
         const srcSettings = readJsonSafe(path.join(srcCfg, 'settings.json')) || {};
         const dstFile = path.join(dstCfg, 'settings.json');
         const dstSettings = readJsonSafe(dstFile) || {};
         let touched = false;
-        for (const k of MODEL_KEYS) {
+        for (const k of settingsKeys) {
             if (srcSettings[k] === undefined) continue;
             if (dstSettings[k] !== undefined) {
                 skipped.push(`setting '${k}' (already set in target)`);
@@ -346,8 +374,10 @@ export function mergeIntoProfile(targetProfileName, selections = {}) {
             touched = true;
         }
         if (touched) writeJsonPretty(dstFile, dstSettings);
-        else if (!MODEL_KEYS.some(k => srcSettings[k] !== undefined)) {
-            skipped.push('model configuration (source has none)');
+        else if (!settingsKeys.some(k => srcSettings[k] !== undefined)) {
+            skipped.push(model && settingsKeys.length === MODEL_KEYS.length
+                ? 'model configuration (source has none)'
+                : 'settings (source has none of the selected keys)');
         }
     }
 
