@@ -69,11 +69,14 @@ export function buildItems(sourceProfile) {
 
     if (sourceProfile) {
         const avail = listMergeableItems(sourceProfile);
+        // A skill whose contents match the shipped template is the same thing
+        // listed twice - the template entry above already offers it.
+        const ownSkills = avail.skills.filter(s => !s.sameAsTemplate);
         const settingKeys = Object.keys(avail.settings);
-        const any = avail.skills.length || avail.mcpServers.length
+        const any = ownSkills.length || avail.mcpServers.length
                  || avail.statusline || settingKeys.length || avail.claudeMd;
         if (any) items.push({ header: true, label: `From profile '${sourceProfile}':` });
-        for (const s of avail.skills) {
+        for (const s of ownSkills) {
             items.push({
                 label: `skill ${s.name} — ${truncate(s.description, 60)}`,
                 pick: { kind: 'skill', name: s.name },

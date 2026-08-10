@@ -302,7 +302,7 @@ test('statuslineAssets: understands ${VAR}, %VAR%, ~/.claude and bare relative p
 test('statuslineAssets: paths escaping the config dir are refused', (t) => {
     const src = statuslineProfile(t, 'x', { 'ok.js': '1' });
     const cfg = claudeConfigDir(src);
-    // ../ok.js resolves into the profile dir, one level above the config dir.
+    // ../settings.json exists (one level up is the profile dir) but is outside.
     assert.deepEqual(statuslineAssets(cfg, { command: 'node "$CLAUDE_CONFIG_DIR/../ok.js"' }), []);
 });
 
@@ -438,8 +438,86 @@ test('listMergeableItems: settings lists every key except statusLine', (t) => {
 });
 
 // ---------------------------------------------------------------------------
+// Template-identical skills
+// ---------------------------------------------------------------------------
+test('listMergeableItems: a skill identical to the template is flagged', (t) => {
+    if (!fs.existsSync(TEMPLATE_SKILLS_DIR)) return;
+    const src = mkProfile(t, 'cpm-tpl');
+    const skillsRoot = path.join(claudeConfigDir(src), 'skills');
+    fs.mkdirSync(skillsRoot, { recursive: true });
+    fs.cpSync(path.join(TEMPLATE_SKILLS_DIR, 'plan-gate'),
+              path.join(skillsRoot, 'plan-gate'), { recursive: true });
+    writeSkill(src, 'mine', 'entirely my own');
+
+    const byName = Object.fromEntries(
+        listMergeableItems(src).skills.map(s => [s.name, s]));
+    assert.equal(byName['plan-gate'].sameAsTemplate, true);
+    assert.equal(byName['mine'].sameAsTemplate, false);
+});
+
+test('listMergeableItems: a locally modified template skill is NOT flagged', (t) => {
+    if (!fs.existsSync(TEMPLATE_SKILLS_DIR)) return;
+    const src = mkProfile(t, 'cpm-tpl');
+    const skillsRoot = path.join(claudeConfigDir(src), 'skills');
+    fs.mkdirSync(skillsRoot, { recursive: true });
+    fs.cpSync(path.join(TEMPLATE_SKILLS_DIR, 'plan-gate'),
+              path.join(skillsRoot, 'plan-gate'), { recursive: true });
+    fs.appendFileSync(path.join(skillsRoot, 'plan-gate', 'SKILL.md'), '\nlocal tweak\n');
+
+    const s = listMergeableItems(src).skills.find(x => x.name === 'plan-gate');
+    assert.equal(s.sameAsTemplate, false);
+});
+
+test('listMergeableItems: CRLF/LF differences do not count as a local skill', (t) => {
+    if (!fs.existsSync(TEMPLATE_SKILLS_DIR)) return;
+    const src = mkProfile(t, 'cpm-tpl');
+    const skillsRoot = path.join(claudeConfigDir(src), 'skills');
+    fs.mkdirSync(skillsRoot, { recursive: true });
+    fs.cpSync(path.join(TEMPLATE_SKILLS_DIR, 'plan-gate'),
+              path.join(skillsRoot, 'plan-gate'), { recursive: true });
+    // Re-write the copy with the opposite line endings, as a git checkout or a
+    // cross-platform copy would.
+    const f = path.join(skillsRoot, 'plan-gate', 'SKILL.md');
+    const txt = fs.readFileSync(f, 'utf8');
+    fs.writeFileSync(f, /\r\n/.test(txt) ? txt.replace(/\r\n/g, '\n')
+                                         : txt.replace(/\n/g, '\r\n'));
+
+    const s = listMergeableItems(src).skills.find(x => x.name === 'plan-gate');
+    assert.equal(s.sameAsTemplate, true, 'line endings alone must not make a skill "local"');
+});
+
+test('listMergeableItems: an extra file makes a skill differ from the template', (t) => {
+    if (!fs.existsSync(TEMPLATE_SKILLS_DIR)) return;
+    const src = mkProfile(t, 'cpm-tpl');
+    const skillsRoot = path.join(claudeConfigDir(src), 'skills');
+    fs.mkdirSync(skillsRoot, { recursive: true });
+    fs.cpSync(path.join(TEMPLATE_SKILLS_DIR, 'plan-gate'),
+              path.join(skillsRoot, 'plan-gate'), { recursive: true });
+    fs.writeFileSync(path.join(skillsRoot, 'plan-gate', 'notes.md'), 'extra\n');
+
+    const s = listMergeableItems(src).skills.find(x => x.name === 'plan-gate');
+    assert.equal(s.sameAsTemplate, false);
+});
+
+// ---------------------------------------------------------------------------
 // Wizard item list
 // ---------------------------------------------------------------------------
+test('buildItems: a template-identical skill is listed once, under Templates', (t) => {
+    if (!fs.existsSync(TEMPLATE_SKILLS_DIR)) return;
+    const src = mkProfile(t, 'cpm-tpl');
+    const skillsRoot = path.join(claudeConfigDir(src), 'skills');
+    fs.mkdirSync(skillsRoot, { recursive: true });
+    fs.cpSync(path.join(TEMPLATE_SKILLS_DIR, 'plan-gate'),
+              path.join(skillsRoot, 'plan-gate'), { recursive: true });
+    writeSkill(src, 'mine', 'entirely my own');
+
+    const items = buildItems(src);
+    const picks = items.filter(i => i.pick).map(i => i.pick);
+    assert.equal(picks.filter(p => p.kind === 'templateSkill' && p.name === 'plan-gate').length, 1);
+    assert.equal(picks.filter(p => p.kind === 'skill' && p.name === 'plan-gate').length, 0);
+    assert.equal(picks.filter(p => p.kind === 'skill' && p.name === 'mine').length, 1);
+});
+
 test('buildItems: MCP servers and settings keys are individually selectable', (t) => {
     const src = fullSource(t);
     writeJson(src, '.claude.json', {

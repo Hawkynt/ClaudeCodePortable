@@ -45,6 +45,43 @@ function skillDescription(skillMd) {
     } catch { return ''; }
 }
 
+/**
+ * Same-content test for two files. Bytes first; failing that, text files are
+ * compared with line endings normalized - a skill that only picked up CRLF on
+ * the way through git or a copy is still the same skill.
+ */
+function filesEqual(a, b) {
+    let ba, bb;
+    try { ba = fs.readFileSync(a); bb = fs.readFileSync(b); } catch { return false; }
+    if (ba.equals(bb)) return true;
+    if (ba.includes(0) || bb.includes(0)) return false;   // binary - bytes are the only truth
+    return ba.toString('utf8').replace(/\r\n/g, '\n')
+        === bb.toString('utf8').replace(/\r\n/g, '\n');
+}
+
+/** Recursive same-content comparison of two directory trees. */
+function dirsEqual(a, b) {
+    let ea, eb;
+    try {
+        ea = fs.readdirSync(a, { withFileTypes: true });
+        eb = fs.readdirSync(b, { withFileTypes: true });
+    } catch { return false; }
+    const names = new Set([...ea, ...eb].map(d => d.name));
+    if (names.size !== ea.length || names.size !== eb.length) return false;
+    for (const name of names) {
+        const pa = path.join(a, name), pb = path.join(b, name);
+        let sa, sb;
+        try { sa = fs.statSync(pa); sb = fs.statSync(pb); } catch { return false; }
+        if (sa.isDirectory() !== sb.isDirectory()) return false;
+        if (sa.isDirectory()) {
+            if (!dirsEqual(pa, pb)) return false;
+            continue;
+        }
+        if (!filesEqual(pa, pb)) return false;
+    }
+    return true;
+}
+
 // ---------------------------------------------------------------------------
 // Status line: the setting decides which files matter, not a hardcoded name.
 // ---------------------------------------------------------------------------
@@ -165,18 +202,27 @@ export function listTemplateSkills() {
 
 /**
  * What a source profile offers for merging:
- *   { skills:      [{name, description}],
+ *   { skills:      [{name, description, sameAsTemplate}],
  *     mcpServers:  [names],
  *     statusline:  bool,
  *     statuslineInfo: { statusLine, assets: [relative paths] } | null,
  *     settings:    { key: value }   (every settings.json key we can merge)
  *     model:       {model?, effortLevel?} | null,
  *     claudeMd:    bool }
+ *
+ * `sameAsTemplate` marks a skill whose directory has the same contents as the
+ * shipped template of the same name - the caller should offer the template
+ * instead of listing the same content twice.
  */
 export function listMergeableItems(sourceProfileName) {
     const cfg = claudeConfigDir(sourceProfileName);
 
-    const skills = scanSkillsDir(path.join(cfg, 'skills'));
+    const srcSkillsRoot = path.join(cfg, 'skills');
+    const skills = scanSkillsDir(srcSkillsRoot).map(s => ({
+        ...s,
+        sameAsTemplate: dirsEqual(path.join(srcSkillsRoot, s.name),
+                                  path.join(TEMPLATE_SKILLS_DIR, s.name)),
+    }));
 
     const claudeJson = readJsonSafe(path.join(cfg, '.claude.json'));
     const mcpServers = Object.keys((claudeJson && claudeJson.mcpServers) || {}).sort();

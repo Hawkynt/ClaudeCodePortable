@@ -223,6 +223,9 @@ files it references), subfolders are created in the target, and absolute paths
 into the source profile are rewritten to `$CLAUDE_CONFIG_DIR` so the setting
 works in its new home.
 
+Source-profile skills whose contents match a shipped template (ignoring line
+endings) are not listed twice — only the template entry is offered.
+
 Merging is strictly additive: anything already present in the target profile
 wins and is reported as skipped — a merge never overwrites a profile's own
 skills, servers, or settings. The logic lives in `launcher/profile-merge.mjs`,
