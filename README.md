@@ -21,7 +21,17 @@
 [![Nightly](https://img.shields.io/github/v/release/Hawkynt/ClaudeCodePortable?include_prereleases&sort=date&filter=nightly-*&label=nightly&color=FF9800)](https://github.com/Hawkynt/ClaudeCodePortable/releases)
 [![Downloads](https://img.shields.io/github/downloads/Hawkynt/ClaudeCodePortable/total)](https://github.com/Hawkynt/ClaudeCodePortable/releases)
 
-> A self-contained, portable distribution of the major agentic coding CLIs — [Claude Code](https://docs.anthropic.com/claude/code), [OpenAI Codex](https://developers.openai.com/codex/cli), [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli), and [Google Antigravity](https://antigravity.google/) — with per-tool multi-profile support, a keyboard-driven session/profile picker, cross-platform bootstrap scripts, and Windows Explorer integration. Drop the folder on any USB stick, cloud share, or working directory and run `Claude.bat` / `Codex.bat` / `Copilot.bat` / `Antigravity.bat` (Windows) or `claude.sh` / `codex.sh` / `copilot.sh` / `antigravity.sh` (Linux/macOS), no admin rights required.
+> A self-contained, portable distribution of the major agentic coding CLIs — Claude Code, OpenAI Codex, GitHub Copilot and Google Antigravity — that keeps every tool, profile and session on the drive you carry, with nothing installed on the host machine.
+
+## 🧭 Vision
+
+Agentic coding CLIs assume they own the machine: a global install, a home directory full of state, an
+account already logged in. That is a poor fit for a work laptop you do not administer, a machine you
+borrow, or a stick you move between three of them.
+
+This keeps all of it in one folder — the runtimes, the tools, the profiles, the session history — so
+the host machine is left exactly as it was found. Adding another CLI to the set is meant to be a
+matter of another launcher, not another architecture.
 
 ## ✨ Features
 
@@ -53,7 +63,112 @@
 - **Zero external deps**: the launcher is plain ES-module JavaScript; no
   `node_modules`, no build step.
 
-## Layout
+## 📦 Installation
+
+### Windows
+
+1. Clone or download this repository.
+2. Double-click `Claude.bat` (or run from a terminal).
+3. On first run the bootstrap downloads Node.js into `app/node/`, then the
+   launcher fills the rest of `app/` and installs `@anthropic-ai/claude-code`
+   into `profiles/default/npm-global/`. Anthropic OAuth login prompts you.
+4. Subsequent runs open the session picker for the current directory.
+
+### Linux / macOS
+
+```bash
+./claude.sh
+```
+
+Requires `curl` or `wget`, `tar`, and an outbound HTTPS connection. The
+bootstrap fetches the platform-appropriate Node build into `app/node/`,
+then the launcher fills in the rest.
+
+## 🚀 Quick start
+
+```bash
+# Windows
+Claude.bat
+
+# Linux / macOS
+./claude.sh
+```
+
+The first run bootstraps Node into `app/node/`, installs the tool into
+`profiles/default/npm-global/` and prompts for login. Every run after that opens the session picker
+for the current directory.
+
+## 🖼️ Screenshots
+
+### Session picker
+
+Pinned rows float to the top, labels show instead of UUIDs, arrow keys navigate, `/` filters.
+
+```text
+================================================================
+ Claude [default] - sessions in D:\Projects\acme-dashboard
+================================================================
+ runtimes: node 22.16.0 | bash 5.2.37 | perl 5.38.2 | python 3.13.1
+
+*>[1]  started 2026-04-17 11:00  |  last       3d ago  |     42 msgs
+       label:   doctor health check
+       initial: implement doctor health check for runtimes
+       last:    ensure it never throws mid-report
+
+  [2]  started 2026-04-19 12:00  |  last      23h ago  |    128 msgs
+       initial: add a portable node+git+python launcher with session picker
+       last:    also add GFS pruning for nightlies
+
+  [3]  started 2026-04-12 15:15  |  last       8d ago  |     37 msgs
+       initial: initial prototype: read JSONL, display session list
+       last:    color the newest session green
+
+[Enter/↑↓] pick   [Esc] NEW   [/] filter   [F <key>] pin   [R <key>] rename   [D <key>] delete   [M <key>] move   [C <key>] copy   [P] profiles   [Q] quit
+[S] skip permissions: [x]  (--dangerously-skip-permissions ON)
+```
+
+### Profile picker
+
+Independent logins, per-profile session counts, in-menu create / delete / rename housekeeping.
+When opened for a specific folder, counts show as `in this folder / total`.
+
+```text
+================================================================
+ Select Claude profile
+================================================================
+ runtimes: node 22.16.0 | bash 5.2.37 | perl 5.38.2 | python 3.13.1
+  session count shown as: in this folder / total
+
+ [1] default      |  me@example.com        |  last 2h ago          |    2/3 sessions
+ [2] work         |  work@example.com      |  last 5d ago          |   5/12 sessions
+ [3] experiments  |  (not logged in)       |  last (never used)    |    0/0 sessions
+
+[Enter] default       [Esc] abort   [Q] quit
+[N] new profile    [D <key>] delete    [R <key>] rename    [X] register Explorer menu
+```
+
+### `--doctor`
+
+Verifies every pinned runtime, the Claude install, and the Explorer menu freshness.
+
+```text
+Running ClaudeCodePortable doctor...
+
+  [ ok ]  node         22.16.0 (matches pin)
+  [ ok ]  git          2.47.1 (MinGit)
+  [ ok ]  bash         5.2.37 (bundled PortableGit)
+  [ ok ]  perl         5.38.2 (bundled from PortableGit; no standalone pin)
+  [ ok ]  python       3.13.1 (matches pin)
+  [ ok ]  pwsh         7.4.6 (matches pin)
+  [ ok ]  sha256 pins  all tools pinned for current platform
+  [skip]  shell-menu   not registered (run --register-shell to install)
+  [ ok ]  profile      default · me@example.com · 57 session(s)
+
+8 green,  0 yellow,  0 red,  1 skipped
+```
+
+
+## 📁 Layout
 
 ```
 ClaudeCodePortable/
@@ -110,28 +225,7 @@ Only `launcher/`, `templates/`, the bootstrap scripts, this README, and the
 license/gitignore are checked in. `app/` and `profiles/` are populated at
 runtime and must never be committed.
 
-## 📦 Getting started
-
-### Windows
-
-1. Clone or download this repository.
-2. Double-click `Claude.bat` (or run from a terminal).
-3. On first run the bootstrap downloads Node.js into `app/node/`, then the
-   launcher fills the rest of `app/` and installs `@anthropic-ai/claude-code`
-   into `profiles/default/npm-global/`. Anthropic OAuth login prompts you.
-4. Subsequent runs open the session picker for the current directory.
-
-### Linux / macOS
-
-```bash
-./claude.sh
-```
-
-Requires `curl` or `wget`, `tar`, and an outbound HTTPS connection. The
-bootstrap fetches the platform-appropriate Node build into `app/node/`,
-then the launcher fills in the rest.
-
-## Command-line flags
+## ⌨️ Command-line flags
 
 | flag                                                    | purpose                                                                                                                                                                                                                            |
 | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -160,7 +254,7 @@ Any flag not recognized by the launcher is forwarded to the underlying tool
 | `CLAUDE_SKIP_MENU=1`   | skip the session menu, pass `--continue`            |
 | `CLAUDE_SKIP_MENU=new` | skip the session menu, start a new session          |
 
-## Session menu
+## 🎛️ Session menu
 
 | key                               | action                                                                                   |
 | --------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -181,7 +275,7 @@ Deleting or moving the last session in a folder no longer drops you straight
 into a fresh session — the picker stays open so you can switch profiles, quit,
 or start a new session deliberately.
 
-## Profile picker
+## 👤 Profile picker
 
 | key              | action                                                                |
 | ---------------- | --------------------------------------------------------------------- |
@@ -231,7 +325,7 @@ wins and is reported as skipped — a merge never overwrites a profile's own
 skills, servers, or settings. The logic lives in `launcher/profile-merge.mjs`,
 the wizard in `launcher/merge-wizard.mjs`.
 
-## Sibling launchers (Codex, Copilot, Antigravity, Happy)
+## 🔗 Sibling launchers (Codex, Copilot, Antigravity, Happy)
 
 The same portable, per-profile experience exists for other agentic CLIs —
 each with its own bootstrap script that reuses the shared runtimes in `app/`
@@ -310,7 +404,7 @@ and forward any other flags to the underlying tool.
 > automated install fails, the launcher prints manual install guidance with
 > the profile's redirected environment.
 
-## Pinned portable runtimes
+## 📌 Pinned portable runtimes
 
 | Tool               | Version                                                        | Source                                      |
 | ------------------ | -------------------------------------------------------------- | ------------------------------------------- |
@@ -325,7 +419,7 @@ All downloads are SHA256-verified against hashes pinned in
 `launcher/paths.mjs`. To upgrade a tool, bump its version + URL + SHA256
 there and delete the corresponding subfolder under `app/`.
 
-## Privacy
+## 🛡️ Privacy
 
 The launcher exports:
 
@@ -335,87 +429,12 @@ The launcher exports:
 
 No data is sent anywhere by the launcher itself.
 
-## 🖼️ Screenshots
-
-### Session picker
-
-Pinned rows float to the top, labels show instead of UUIDs, arrow keys navigate, `/` filters.
-
-```text
-================================================================
- Claude [default] - sessions in D:\Projects\acme-dashboard
-================================================================
- runtimes: node 22.16.0 | bash 5.2.37 | perl 5.38.2 | python 3.13.1
-
-*>[1]  started 2026-04-17 11:00  |  last       3d ago  |     42 msgs
-       label:   doctor health check
-       initial: implement doctor health check for runtimes
-       last:    ensure it never throws mid-report
-
-  [2]  started 2026-04-19 12:00  |  last      23h ago  |    128 msgs
-       initial: add a portable node+git+python launcher with session picker
-       last:    also add GFS pruning for nightlies
-
-  [3]  started 2026-04-12 15:15  |  last       8d ago  |     37 msgs
-       initial: initial prototype: read JSONL, display session list
-       last:    color the newest session green
-
-[Enter/↑↓] pick   [Esc] NEW   [/] filter   [F <key>] pin   [R <key>] rename   [D <key>] delete   [M <key>] move   [C <key>] copy   [P] profiles   [Q] quit
-[S] skip permissions: [x]  (--dangerously-skip-permissions ON)
-```
-
-### Profile picker
-
-Independent logins, per-profile session counts, in-menu create / delete / rename housekeeping.
-When opened for a specific folder, counts show as `in this folder / total`.
-
-```text
-================================================================
- Select Claude profile
-================================================================
- runtimes: node 22.16.0 | bash 5.2.37 | perl 5.38.2 | python 3.13.1
-  session count shown as: in this folder / total
-
- [1] default      |  me@example.com        |  last 2h ago          |    2/3 sessions
- [2] work         |  work@example.com      |  last 5d ago          |   5/12 sessions
- [3] experiments  |  (not logged in)       |  last (never used)    |    0/0 sessions
-
-[Enter] default       [Esc] abort   [Q] quit
-[N] new profile    [D <key>] delete    [R <key>] rename    [X] register Explorer menu
-```
-
-### `--doctor`
-
-Verifies every pinned runtime, the Claude install, and the Explorer menu freshness.
-
-```text
-Running ClaudeCodePortable doctor...
-
-  [ ok ]  node         22.16.0 (matches pin)
-  [ ok ]  git          2.47.1 (MinGit)
-  [ ok ]  bash         5.2.37 (bundled PortableGit)
-  [ ok ]  perl         5.38.2 (bundled from PortableGit; no standalone pin)
-  [ ok ]  python       3.13.1 (matches pin)
-  [ ok ]  pwsh         7.4.6 (matches pin)
-  [ ok ]  sha256 pins  all tools pinned for current platform
-  [skip]  shell-menu   not registered (run --register-shell to install)
-  [ ok ]  profile      default · me@example.com · 57 session(s)
-
-8 green,  0 yellow,  0 red,  1 skipped
-```
-
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to run the tests, add a
-new portable tool, or extend the menus.
-
-## Uninstalling
+## 🗑️ Uninstalling
 
 Remove the folder. If you registered the Explorer context menu, run
 `Claude.bat --unregister-shell` first so the registry entries are removed.
 
-## Development
+## 🛠️ Building
 
 Cloning the repo gives you `launcher/`, bootstrap scripts, tests, and CI
 config. Everything under `app/` and `profiles/` is populated at runtime.
@@ -477,6 +496,11 @@ node .github/workflows/scripts/prune-nightlies.mjs --dry-run
 
 (Requires `gh` CLI and a GitHub auth token.) Prints the keep/drop plan
 without touching any releases.
+
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to run the tests, add a
+new portable tool, or extend the menus.
 
 ## ❤️ Support
 
