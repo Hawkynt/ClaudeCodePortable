@@ -108,7 +108,7 @@ Pinned rows float to the top, labels show instead of UUIDs, arrow keys navigate,
 ================================================================
  Claude [default] - sessions in D:\Projects\acme-dashboard
 ================================================================
- runtimes: node 22.16.0 | bash 5.2.37 | perl 5.38.2 | python 3.13.1
+ runtimes: node 22.23.3 | bash 5.2.37 | perl 5.38.2 | python 3.13.1
 
 *>[1]  started 2026-04-17 11:00  |  last       3d ago  |     42 msgs
        label:   doctor health check
@@ -136,7 +136,7 @@ When opened for a specific folder, counts show as `in this folder / total`.
 ================================================================
  Select Claude profile
 ================================================================
- runtimes: node 22.16.0 | bash 5.2.37 | perl 5.38.2 | python 3.13.1
+ runtimes: node 22.23.3 | bash 5.2.37 | perl 5.38.2 | python 3.13.1
   session count shown as: in this folder / total
 
  [1] default      |  me@example.com        |  last 2h ago          |    2/3 sessions
@@ -154,7 +154,7 @@ Verifies every pinned runtime, the Claude install, and the Explorer menu freshne
 ```text
 Running ClaudeCodePortable doctor...
 
-  [ ok ]  node         22.16.0 (matches pin)
+  [ ok ]  node         22.23.3 (matches pin)
   [ ok ]  git          2.47.1 (MinGit)
   [ ok ]  bash         5.2.37 (bundled PortableGit)
   [ ok ]  perl         5.38.2 (bundled from PortableGit; no standalone pin)
@@ -408,7 +408,7 @@ and forward any other flags to the underlying tool.
 
 | Tool               | Version                                                        | Source                                      |
 | ------------------ | -------------------------------------------------------------- | ------------------------------------------- |
-| Node.js            | 22.16.0                                                        | `nodejs.org/dist` (SHASUMS256.txt verified) |
+| Node.js            | 22.23.3                                                        | `nodejs.org/dist` (SHASUMS256.txt verified) |
 | Git (standalone)   | MinGit 2.47.1 (Windows only)                                   | git-for-windows GitHub release              |
 | Bash               | Git for Windows 2.47.1 PortableGit (bundled perl + coreutils)  | git-for-windows GitHub release              |
 | Perl (Linux/macOS) | skaji/relocatable-perl 5.42.2.0                                | GitHub releases                             |

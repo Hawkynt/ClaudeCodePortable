@@ -11,14 +11,14 @@ PORTABLE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$PORTABLE_ROOT/app"
 NODE_DIR="$APP_DIR/node"
 
-NODE_VERSION="22.16.0"
+NODE_VERSION="22.23.3"
 
 case "$(uname -s)" in
     Linux*)
         case "$(uname -m)" in
             x86_64)
                 NODE_ARCH="linux-x64"
-                NODE_SHA256="f4cb75bb036f0d0eddf6b79d9596df1aaab9ddccd6a20bf489be5abe9467e84e"
+                NODE_SHA256="df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de"
                 ;;
             aarch64)
                 NODE_ARCH="linux-arm64"
@@ -33,11 +33,11 @@ case "$(uname -s)" in
         case "$(uname -m)" in
             arm64)
                 NODE_ARCH="darwin-arm64"
-                NODE_SHA256="1d7f34ec4c03e12d8b33481e5c4560432d7dc31a0ef3ff5a4d9a8ada7cf6ecc9"
+                NODE_SHA256="23b25245dcfb9af7262f8ff142e9e2e0af025368117329e7a7458a51e5922f53"
                 ;;
             x86_64)
                 NODE_ARCH="darwin-x64"
-                NODE_SHA256="838d400f7e66c804e5d11e2ecb61d6e9e878611146baff69d6a2def3cc23f4ac"
+                NODE_SHA256="8a677b0219178efd6eb0e475457c4afb452b521a92f6e67845a73bd85727f2a8"
                 ;;
             *) echo "Unsupported macOS arch: $(uname -m)" >&2; exit 1 ;;
         esac
