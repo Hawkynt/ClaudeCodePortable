@@ -124,7 +124,7 @@ export function statuslineAssets(cfgDir, statusLine) {
     const root = path.resolve(cfgDir);
     const seen = new Set();
     for (const raw of shellTokens(command)) {
-        const token = expandConfigVars(raw, root);
+        const token = expandConfigVars(raw, root).replaceAll('\\', path.sep);
         // A bare `python` or a flag is not a path; require a separator or an
         // extension before we even try to resolve it.
         if (!/[\\/]/.test(token) && !/\.[A-Za-z0-9]+$/.test(token)) continue;
