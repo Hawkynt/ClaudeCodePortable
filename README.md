@@ -382,8 +382,8 @@ What to expect when trying each one:
    GitHub device-flow login; on machines with a Windows keychain the token is
    stored there and thus SHARED across profiles — for real isolation set
    `GH_TOKEN` before launching (the launcher reminds you when none is set).
-3. **`Antigravity.bat`** — no npm package: the launcher runs Google's official
-   installer with the profile-redirected environment, so `agy` and its
+3. **`Antigravity.bat` / `./antigravity.sh`** — no npm package: the launcher
+   runs Google's official installer with the profile-redirected environment, so `agy` and its
    `~/.gemini` state land inside the profile. If the installer URL has moved,
    it prints copy-paste manual install instructions instead of failing
    silently. Google login opens a browser; Antigravity stores the token in the

@@ -14,7 +14,7 @@
 
 import fs   from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { INSTALL_PS1, INSTALL_SH, runAgyInstaller } from './antigravity-install.mjs';
 
 import { IS_WIN, PROFILES_ROOT, APP_ROOT, profileDataDir, geminiHomeDir } from './paths.mjs';
 import { color, getVersionLine, promptYesNo } from './ui.mjs';
@@ -29,9 +29,6 @@ import {
     readCredential, writeCredential, deleteCredential,
     loadProfileCredential, saveProfileCredential,
 } from './win-credential.mjs';
-
-const INSTALL_PS1 = 'https://antigravity.google/cli/install.ps1';
-const INSTALL_SH  = 'https://antigravity.google/cli/install.sh';
 
 // The machine-wide credential slot Antigravity keeps its Google OAuth token
 // in (go-keyring target = "<service>:<user>"). Isolated per profile by
@@ -77,11 +74,15 @@ function profileCredFile(profileName) {
         if (!ok || !fs.existsSync(agyBin)) {
             console.error(color('red', 'Antigravity CLI (agy) is not installed for this profile.'));
             console.error(color('yellow',
-                'Install it manually with this profile\'s environment, e.g. in PowerShell:\n'
-              + `  $env:USERPROFILE='${home}'; $env:LOCALAPPDATA='${localAppData}'\n`
-              + `  irm ${INSTALL_PS1} | iex\n`
-              + 'then re-run Antigravity.bat. (Installer URL may have moved - see\n'
-              + 'https://antigravity.google/docs/cli-install for the current one.)'));
+                IS_WIN
+                    ? 'Install it manually in PowerShell:\n'
+                      + `  $env:USERPROFILE='${home}'; $env:LOCALAPPDATA='${localAppData}'\n`
+                      + `  irm ${INSTALL_PS1} | iex\n`
+                      + 'then re-run Antigravity.bat.'
+                    : 'Install it manually in Bash:\n'
+                      + `  export HOME='${home.replaceAll("'", "'\\''")}'\n`
+                      + `  curl -fsSL ${INSTALL_SH} | bash\n`
+                      + 'then re-run ./antigravity.sh.'));
             process.exit(1);
         }
     }
@@ -168,12 +169,7 @@ function agyBinPath(profileName) {
 /** Run the official installer with the profile-redirected environment. */
 function installAgy(profileName) {
     console.log(color('cyan', `Installing Antigravity CLI into profile [${profileName}] ...`));
-    const r = IS_WIN
-        ? spawnSync('pwsh', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command',
-              `irm ${INSTALL_PS1} | iex`],
-              { stdio: 'inherit', env: process.env, windowsHide: true })
-        : spawnSync('bash', ['-c', `curl -fsSL ${INSTALL_SH} | bash -s -- --skip-aliases --skip-path`],
-              { stdio: 'inherit', env: process.env });
+    const r = runAgyInstaller(IS_WIN);
     if (r.error || r.status !== 0) {
         console.error(color('yellow',
             `Installer did not complete (${r.error ? r.error.message : 'exit ' + r.status}).`));
